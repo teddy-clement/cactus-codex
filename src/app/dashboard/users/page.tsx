@@ -62,22 +62,6 @@ export default async function UsersPage() {
         ))}
       </div>
 
-      <style jsx>{`
-        .panel{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden}
-        .ph{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-        .pht{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#fff;letter-spacing:.03em}
-        .phg{font-family:'DM Mono',monospace;font-size:9px;color:#384e3c;letter-spacing:.17em;text-transform:uppercase}
-        .trow{display:grid;align-items:center;padding:11px 19px;gap:13px;border-bottom:1px solid var(--border);transition:background .13s}
-        .trow:last-child{border-bottom:none}.trow:not(.thead):hover{background:var(--surface2)}
-        .trow.thead{padding:9px 19px;border-bottom:1px solid var(--border2)}.trow.thead span{font-family:'DM Mono',monospace;font-size:8.5px;color:#384e3c;letter-spacing:.2em;text-transform:uppercase}
-        .mav{width:30px;height:30px;border-radius:50%;background:#1d2a1f;border:1px solid #233428;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#4ade80;font-weight:800;flex-shrink:0}
-        .role{font-family:'DM Mono',monospace;font-size:9px;padding:2px 8px;border-radius:3px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;display:inline-block}
-        .role-sa{background:rgba(74,222,128,.07);color:#4ade80;border-color:rgba(74,222,128,.22)}
-        .role-ad{background:rgba(59,130,246,.07);color:#3b82f6;border-color:rgba(59,130,246,.22)}
-        .role-v{background:#0a120c;color:#6fa876;border-color:#233428}
-        .ibtn{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:#384e3c;cursor:pointer;font-size:12px;transition:all .13s}
-        .ibtn:hover{background:var(--surface2);color:#d8eedd;border-color:var(--border2)}
-      `}</style>
     </>
   )
 }

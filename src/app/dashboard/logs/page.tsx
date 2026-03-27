@@ -51,24 +51,6 @@ export default async function LogsPage() {
         ))}
       </div>
 
-      <style jsx>{`
-        .panel{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden}
-        .ph{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-        .pht{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#fff;letter-spacing:.03em}
-        .phg{font-family:'DM Mono',monospace;font-size:9px;color:#384e3c;letter-spacing:.17em;text-transform:uppercase}
-        .lr{display:grid;grid-template-columns:130px 54px 1fr 110px;padding:9px 19px;gap:13px;border-bottom:1px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:10.5px}
-        .lr:last-child{border-bottom:none}
-        .lr-head{padding:9px 19px;border-bottom:1px solid var(--border2)}
-        .lr-head span{font-size:8.5px;color:#384e3c;letter-spacing:.2em;text-transform:uppercase}
-        .ts{color:#384e3c}
-        .lv{padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;text-align:center}
-        .lv-ok  {background:rgba(74,222,128,.1);color:#4ade80}
-        .lv-info{background:rgba(56,189,248,.1);color:#38bdf8}
-        .lv-warn{background:rgba(245,158,11,.1);color:#f59e0b}
-        .lv-err {background:rgba(239,68,68,.1);color:#ef4444}
-        .lm{color:#6fa876}
-        .lu{color:#384e3c;text-align:right}
-      `}</style>
     </>
   )
 }

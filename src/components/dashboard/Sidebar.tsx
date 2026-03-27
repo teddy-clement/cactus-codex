@@ -3,7 +3,15 @@ import { usePathname, useRouter } from 'next/navigation'
 import CactusLogo from '@/components/ui/CactusLogo'
 import type { CCUser } from '@/types'
 
-const NAV = [
+type NavItem = {
+  label: string
+  icon: string
+  href: string
+  badge?: string
+  badgeColor?: string
+}
+
+const NAV: { group: string; items: NavItem[] }[] = [
   { group: 'Vue générale', items: [
     { label: 'Tableau de bord', icon: '◈', href: '/dashboard' },
   ]},
