@@ -20,6 +20,14 @@ export interface App {
   maintenance_since: string | null
   maintenance_message: string | null
   maintenance_by: string | null
+  app_key?: string | null
+  control_note?: string | null
+  public_login_message?: string | null
+  public_home_message?: string | null
+  login_notice_enabled?: boolean | null
+  home_notice_enabled?: boolean | null
+  reboot_required?: boolean | null
+  last_restart_at?: string | null
   created_at: string
 }
 

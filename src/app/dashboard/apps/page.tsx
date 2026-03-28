@@ -1,126 +1,288 @@
 'use client'
-import { useEffect, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import type { App } from '@/types'
 
-const STATUS_LABEL: Record<string, string> = { online: 'En ligne', maintenance: 'Maintenance', offline: 'Hors ligne' }
-const STATUS_CLS:   Record<string, string> = { online: 'pill-on', maintenance: 'pill-mt', offline: 'pill-of' }
+type ToastState = { msg: string; type: 'ok' | 'wn' | 'er' } | null
+
+type Drafts = Record<string, {
+  maintenance_message: string
+  public_login_message: string
+  public_home_message: string
+  control_note: string
+  login_notice_enabled: boolean
+  home_notice_enabled: boolean
+  reboot_required: boolean
+}>
+
+const STATUS_LABEL: Record<string, string> = {
+  online: 'En ligne',
+  maintenance: 'Maintenance',
+  offline: 'Hors ligne',
+}
+
+const STATUS_CLS: Record<string, string> = {
+  online: 'pill-on',
+  maintenance: 'pill-mt',
+  offline: 'pill-of',
+}
+
+function slugify(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+}
 
 export default function AppsPage() {
   const [apps, setApps] = useState<App[]>([])
   const [loading, setLoading] = useState(true)
-  const [toggling, setToggling] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ msg: string; type: string } | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastState>(null)
+  const [drafts, setDrafts] = useState<Drafts>({})
 
   useEffect(() => {
-    fetch('/api/apps').then(r => r.json()).then(setApps).finally(() => setLoading(false))
+    fetch('/api/apps')
+      .then((response) => response.json())
+      .then((data: App[]) => {
+        setApps(data)
+        const nextDrafts: Drafts = {}
+        data.forEach((app) => {
+          nextDrafts[app.id] = {
+            maintenance_message: app.maintenance_message || '🔧 Maintenance en cours. Retour très bientôt.',
+            public_login_message: app.public_login_message || '',
+            public_home_message: app.public_home_message || '',
+            control_note: app.control_note || '',
+            login_notice_enabled: !!app.login_notice_enabled,
+            home_notice_enabled: !!app.home_notice_enabled,
+            reboot_required: !!app.reboot_required,
+          }
+        })
+        setDrafts(nextDrafts)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
-  function showToast(msg: string, type = 'ok') {
+  function showToast(msg: string, type: 'ok' | 'wn' | 'er' = 'ok') {
     setToast({ msg, type })
-    setTimeout(() => setToast(null), 3500)
+    window.setTimeout(() => setToast(null), 3600)
   }
 
-  async function toggleMaintenance(app: App) {
-    setToggling(app.id)
-    const newStatus = app.status === 'maintenance' ? 'online' : 'maintenance'
+  function updateDraft(appId: string, patch: Partial<Drafts[string]>) {
+    setDrafts((current) => ({
+      ...current,
+      [appId]: {
+        ...current[appId],
+        ...patch,
+      },
+    }))
+  }
+
+  async function patchApp(appId: string, patch: Record<string, unknown>, successMessage: string, type: 'ok' | 'wn' | 'er' = 'ok') {
+    setSavingId(appId)
     try {
-      const res = await fetch('/api/apps', {
+      const response = await fetch('/api/apps', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: app.id, status: newStatus }),
+        body: JSON.stringify({ id: appId, ...patch }),
       })
-      const updated = await res.json()
-      setApps(prev => prev.map(a => a.id === app.id ? updated : a))
-      showToast(
-        newStatus === 'maintenance'
-          ? `⚙ ${app.name} — maintenance activée`
-          : `✓ ${app.name} — remis en ligne`,
-        newStatus === 'maintenance' ? 'wn' : 'ok'
-      )
-    } catch {
-      showToast('Erreur lors de la mise à jour', 'er')
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Erreur de mise à jour.')
+      }
+      setApps((current) => current.map((app) => (app.id === appId ? payload : app)))
+      showToast(successMessage, type)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Erreur inattendue.', 'er')
     } finally {
-      setToggling(null)
+      setSavingId(null)
     }
   }
 
-  return (
-    <>
-      <div className="panel">
-        <div className="ph"><div className="pht">Applications gérées</div><div className="phg">// {apps.length} apps enregistrées</div></div>
-        <div className="trow thead" style={{ gridTemplateColumns: '2fr 1.8fr 1fr 1.2fr 120px' }}>
-          <span>Application</span><span>URL</span><span>Statut</span><span>Uptime 30j</span><span>Action</span>
-        </div>
-        {loading ? (
-          <div style={{ padding: '24px 19px', fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--tx3)' }}>Chargement...</div>
-        ) : apps.map(app => (
-          <div key={app.id} className="trow" style={{ gridTemplateColumns: '2fr 1.8fr 1fr 1.2fr 120px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: '#fff' }}>{app.name}</span>
-              <span className={`env env-${app.env}`}>{app.env.toUpperCase()}</span>
-            </div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--tx3)' }}>{app.url}</div>
-            <div>
-              <span className={`pill ${STATUS_CLS[app.status]}`}>
-                <span className="pill-dot" />
-                {STATUS_LABEL[app.status]}
-              </span>
-            </div>
-            <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: app.status === 'maintenance' ? 'var(--amber)' : 'var(--cc-lit)' }}>
-                {app.status === 'maintenance' ? '—' : `${app.uptime ?? 99.9}%`}
-              </div>
-              {app.status !== 'maintenance' && (
-                <div className="upr">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <div key={i} className={`ut ${i === 5 ? 'd' : ''}`} />
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <button
-                className={`tbtn ${app.status === 'maintenance' ? 'on' : ''}`}
-                onClick={() => toggleMaintenance(app)}
-                disabled={toggling === app.id}
-              >
-                {toggling === app.id ? '...' : '⚙ Maintenance'}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+  async function toggleMaintenance(app: App) {
+    const draft = drafts[app.id]
+    const nextStatus = app.status === 'maintenance' ? 'online' : 'maintenance'
+    await patchApp(
+      app.id,
+      {
+        status: nextStatus,
+        maintenance_message: draft?.maintenance_message,
+      },
+      nextStatus === 'maintenance'
+        ? `${app.name} passe en maintenance.`
+        : `${app.name} est remis en ligne.`,
+      nextStatus === 'maintenance' ? 'wn' : 'ok'
+    )
+  }
 
-      {toast && (
-        <div className={`toast-fixed toast-${toast.type}`}>{toast.msg}</div>
+  async function saveCommunications(app: App) {
+    const draft = drafts[app.id]
+    await patchApp(
+      app.id,
+      {
+        public_login_message: draft.public_login_message,
+        public_home_message: draft.public_home_message,
+        login_notice_enabled: draft.login_notice_enabled,
+        home_notice_enabled: draft.home_notice_enabled,
+        control_note: draft.control_note,
+        reboot_required: draft.reboot_required,
+      },
+      `${app.name} — communications enregistrées.`
+    )
+  }
+
+  async function confirmRestart(app: App) {
+    await patchApp(app.id, { last_restart_at: 'now' }, `${app.name} — redémarrage confirmé.`)
+  }
+
+  const focusApps = useMemo(() => {
+    return [...apps].sort((a, b) => {
+      const aScore = a.name.toLowerCase().includes('cotrain') ? 1 : 0
+      const bScore = b.name.toLowerCase().includes('cotrain') ? 1 : 0
+      return bScore - aScore || a.name.localeCompare(b.name)
+    })
+  }, [apps])
+
+  return (
+    <div className="apps-shell">
+      <section className="apps-header panel glass-panel">
+        <div>
+          <div className="phg">// pilotage applicatif</div>
+          <h2 className="apps-title">Contrôle centralisé de tes applications métier</h2>
+          <p className="apps-copy">
+            Depuis ici, tu passes CoTrain en maintenance, tu pousses un message visible au login ou à l’accueil,
+            tu notes l’action à faire et tu gardes la main sur les redémarrages.
+          </p>
+        </div>
+        <div className="apps-summary">
+          <div className="apps-summary-box"><strong>{apps.length}</strong><span>apps suivies</span></div>
+          <div className="apps-summary-box"><strong>{apps.filter((app) => app.status === 'maintenance').length}</strong><span>maintenances</span></div>
+          <div className="apps-summary-box"><strong>{apps.filter((app) => app.login_notice_enabled || app.home_notice_enabled).length}</strong><span>annonces publiques</span></div>
+        </div>
+      </section>
+
+      {loading ? (
+        <div className="panel panel-pad">Chargement des applications...</div>
+      ) : (
+        <section className="apps-grid">
+          {focusApps.map((app) => {
+            const draft = drafts[app.id]
+            const publicEndpoint = `/api/public/apps/${app.app_key || slugify(app.name)}`
+            return (
+              <article key={app.id} className={`app-card panel ${app.name.toLowerCase().includes('cotrain') ? 'app-card-focus' : ''}`}>
+                <div className="app-card-head">
+                  <div>
+                    <div className="app-name-row">
+                      <h3>{app.name}</h3>
+                      <span className={`env env-${app.env}`}>{app.env.toUpperCase()}</span>
+                    </div>
+                    <div className="app-url">{app.url}</div>
+                  </div>
+                  <div className="app-status-box">
+                    <span className={`pill ${STATUS_CLS[app.status]}`}><span className="pill-dot" />{STATUS_LABEL[app.status]}</span>
+                    <div className="app-uptime">{app.status === 'maintenance' ? '—' : `${app.uptime ?? 99.9}% uptime`}</div>
+                  </div>
+                </div>
+
+                <div className="app-quick-actions">
+                  <button
+                    className={`control-btn ${app.status === 'maintenance' ? 'control-btn-live' : 'control-btn-maintenance'}`}
+                    onClick={() => toggleMaintenance(app)}
+                    disabled={savingId === app.id}
+                  >
+                    {savingId === app.id ? 'Traitement…' : app.status === 'maintenance' ? 'Remettre en ligne' : 'Passer en maintenance'}
+                  </button>
+                  <button className="control-btn control-btn-secondary" onClick={() => confirmRestart(app)} disabled={savingId === app.id}>
+                    Confirmer redémarrage
+                  </button>
+                </div>
+
+                <div className="app-section-grid">
+                  <div className="control-block">
+                    <label>Message maintenance</label>
+                    <textarea
+                      rows={3}
+                      value={draft?.maintenance_message || ''}
+                      onChange={(event) => updateDraft(app.id, { maintenance_message: event.target.value })}
+                    />
+                  </div>
+                  <div className="control-block">
+                    <label>Note de pilotage interne</label>
+                    <textarea
+                      rows={3}
+                      value={draft?.control_note || ''}
+                      onChange={(event) => updateDraft(app.id, { control_note: event.target.value })}
+                      placeholder="Ex. : surveiller le prochain redémarrage Vercel / test post-déploiement à faire."
+                    />
+                  </div>
+                </div>
+
+                <div className="app-section-grid">
+                  <div className="control-block">
+                    <div className="control-label-row">
+                      <label>Message page login</label>
+                      <label className="switch-wrap">
+                        <input
+                          type="checkbox"
+                          checked={!!draft?.login_notice_enabled}
+                          onChange={(event) => updateDraft(app.id, { login_notice_enabled: event.target.checked })}
+                        />
+                        <span>Actif</span>
+                      </label>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={draft?.public_login_message || ''}
+                      onChange={(event) => updateDraft(app.id, { public_login_message: event.target.value })}
+                      placeholder="Annonce affichée sur le login : MAJ, coupure, reprise, message d’exploitation."
+                    />
+                  </div>
+                  <div className="control-block">
+                    <div className="control-label-row">
+                      <label>Message page home</label>
+                      <label className="switch-wrap">
+                        <input
+                          type="checkbox"
+                          checked={!!draft?.home_notice_enabled}
+                          onChange={(event) => updateDraft(app.id, { home_notice_enabled: event.target.checked })}
+                        />
+                        <span>Actif</span>
+                      </label>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={draft?.public_home_message || ''}
+                      onChange={(event) => updateDraft(app.id, { public_home_message: event.target.value })}
+                      placeholder="Annonce affichée sur l’accueil : redémarrage effectué, version livrée, information terrain."
+                    />
+                  </div>
+                </div>
+
+                <div className="app-footer-row">
+                  <label className="switch-wrap switch-wrap-inline">
+                    <input
+                      type="checkbox"
+                      checked={!!draft?.reboot_required}
+                      onChange={(event) => updateDraft(app.id, { reboot_required: event.target.checked })}
+                    />
+                    <span>Marquer “redémarrage requis”</span>
+                  </label>
+
+                  <code>{publicEndpoint}</code>
+
+                  <button className="control-btn control-btn-primary" onClick={() => saveCommunications(app)} disabled={savingId === app.id}>
+                    {savingId === app.id ? 'Enregistrement…' : 'Enregistrer les messages'}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+        </section>
       )}
 
-      <style jsx>{`
-        .panel{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden}
-        .ph{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-        .pht{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#fff;letter-spacing:.03em}
-        .phg{font-family:'DM Mono',monospace;font-size:9px;color:#384e3c;letter-spacing:.17em;text-transform:uppercase}
-        .trow{display:grid;align-items:center;padding:11px 19px;gap:13px;border-bottom:1px solid var(--border);transition:background .13s}
-        .trow:last-child{border-bottom:none}.trow:not(.thead):hover{background:var(--surface2)}
-        .trow.thead{padding:9px 19px;border-bottom:1px solid var(--border2)}.trow.thead span{font-family:'DM Mono',monospace;font-size:8.5px;color:#384e3c;letter-spacing:.2em;text-transform:uppercase}
-        .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;font-size:9.5px;font-weight:500}
-        .pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
-        .pill-on{background:rgba(74,222,128,.09);color:#4ade80;border:1px solid rgba(74,222,128,.2)}
-        .pill-mt{background:rgba(245,158,11,.09);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
-        .pill-of{background:rgba(239,68,68,.09);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
-        .env{font-family:'DM Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid;letter-spacing:.1em;display:inline-block}
-        .env-production{background:rgba(56,189,248,.06);color:#38bdf8;border-color:rgba(56,189,248,.18)}
-        .env-staging,.env-preview{background:rgba(74,222,128,.06);color:#4ade80;border-color:rgba(74,222,128,.18)}
-        .env-cloud{background:rgba(59,130,246,.06);color:#3b82f6;border-color:rgba(59,130,246,.18)}
-        .upr{display:flex;gap:2px;margin-top:5px}.ut{flex:1;height:5px;border-radius:1px;background:#1a4a2e;opacity:.7}.ut.d{background:#ef4444;opacity:.8}
-        .tbtn{padding:5px 13px;border-radius:5px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border2);background:var(--bg2);color:#6fa876;transition:all .17s}
-        .tbtn:hover:not(:disabled){background:rgba(245,158,11,.07);color:#f59e0b;border-color:rgba(245,158,11,.22)}
-        .tbtn.on{background:rgba(245,158,11,.09);color:#f59e0b;border-color:rgba(245,158,11,.25)}
-        .tbtn:disabled{opacity:.5;cursor:not-allowed}
-        .toast-fixed{position:fixed;bottom:20px;right:20px;background:#111a12;border:1px solid #233428;border-radius:9px;padding:12px 17px;font-family:'DM Mono',monospace;font-size:12px;color:#d8eedd;box-shadow:0 20px 40px rgba(0,0,0,.5);z-index:300;animation:slideUp .3s ease both}
-        .toast-ok{border-left:3px solid #4ade80}.toast-wn{border-left:3px solid #f59e0b}.toast-er{border-left:3px solid #ef4444}
-        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-      `}</style>
-    </>
+      {toast && <div className={`toast-fixed toast-${toast.type}`}>{toast.msg}</div>}
+    </div>
   )
 }

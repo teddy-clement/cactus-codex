@@ -38,8 +38,25 @@ CREATE TABLE IF NOT EXISTS apps (
   maintenance_since    TIMESTAMPTZ,
   maintenance_message  TEXT,
   maintenance_by       TEXT,
+  app_key              TEXT UNIQUE,
+  control_note         TEXT,
+  public_login_message TEXT,
+  public_home_message  TEXT,
+  login_notice_enabled BOOLEAN DEFAULT FALSE,
+  home_notice_enabled  BOOLEAN DEFAULT FALSE,
+  reboot_required      BOOLEAN DEFAULT FALSE,
+  last_restart_at      TIMESTAMPTZ,
   created_at           TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS app_key TEXT UNIQUE;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS control_note TEXT;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS public_login_message TEXT;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS public_home_message TEXT;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS login_notice_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS home_notice_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS reboot_required BOOLEAN DEFAULT FALSE;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS last_restart_at TIMESTAMPTZ;
 
 -- ─── TABLE : maintenance_schedules ───────────────────
 CREATE TABLE IF NOT EXISTS maintenance_schedules (
@@ -80,11 +97,11 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 -- ══════════════════════════════════════════════════════
 
 -- Apps (à adapter selon ton projet)
-INSERT INTO apps (name, url, env, status, uptime) VALUES
-  ('CoTrain production', 'cotrain-vbeta.vercel.app',    'production', 'online',      99.8),
-  ('CoTrain staging',    'cotrain-staging.vercel.app',  'staging',    'maintenance', NULL),
-  ('Cactus Codex',       'cactus-codex.com',            'production', 'online',      100.0),
-  ('Supabase DB',        'supabase.io — PostgreSQL',    'cloud',      'online',      99.9)
+INSERT INTO apps (name, url, env, status, uptime, app_key, control_note) VALUES
+  ('CoTrain production', 'cotrain-vbeta.vercel.app',    'production', 'online',      99.8, 'cotrain-production', 'Instance métier principale à piloter depuis Codex'),
+  ('CoTrain staging',    'cotrain-staging.vercel.app',  'staging',    'maintenance', NULL,  'cotrain-staging',    'Bac à sable technique pour tests et recettes'),
+  ('Cactus Codex',       'cactus-codex.com',            'production', 'online',      100.0,'cactus-codex',       'Cockpit central de contrôle et communication'),
+  ('Supabase DB',        'supabase.io — PostgreSQL',    'cloud',      'online',      99.9, 'supabase-db',         'Socle base de données et API')
 ON CONFLICT DO NOTHING;
 
 -- Roadmap CoTrain V2
