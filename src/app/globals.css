@@ -618,3 +618,11 @@ body::after {
 .tb-right{display:flex;align-items:center;gap:12px}.tb-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(10,17,12,.8);border:1px solid rgba(74,222,128,.14);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#a7d9b6}.tb-chip-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.5);animation:pulse 2s infinite}.tb-clock{font-family:var(--mono);font-size:11px;color:#729a7c}
 @media (max-width: 1200px){.hero-shell,.content-grid,.lower-grid,.app-section-grid{grid-template-columns:1fr}.metrics-grid{grid-template-columns:repeat(2,1fr)}.apps-header{flex-direction:column}.apps-summary{min-width:0;width:100%}.app-footer-row{grid-template-columns:1fr}.app-status-box{align-items:flex-start}}
 @media (max-width: 960px){.sidebar{width:224px}.metrics-grid{grid-template-columns:1fr}.hero-title{font-size:38px}}
+
+
+.module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:18px}
+.module-card{border:1px solid var(--border);background:var(--surface2);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.module-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.module-name{font-weight:800;color:#fff;font-size:15px}.module-path{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
+.module-actions{display:flex;gap:10px;flex-wrap:wrap}.module-card textarea{width:100%;border-radius:10px;border:1px solid var(--border2);background:#0f1713;color:#fff;padding:10px;font-size:13px;resize:vertical}
+.signal-table{display:flex;flex-direction:column;gap:10px}.signal-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)}.signal-row:last-child{border-bottom:none}.signal-row p{margin:4px 0 0;color:#9fb7a3;font-size:13px}.signal-row time{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}

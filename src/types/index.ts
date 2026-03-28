@@ -1,12 +1,11 @@
-export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'VIEWER'
-
 export interface CCUser {
   id: string
   email: string
   name: string
-  role: UserRole
-  organisation: string
-  last_login: string | null
+  password_hash: string
+  role: 'SUPERADMIN' | 'ADMIN' | 'VIEWER'
+  organisation: string | null
+  last_login?: string | null
   created_at: string
 }
 
@@ -28,6 +27,31 @@ export interface App {
   home_notice_enabled?: boolean | null
   reboot_required?: boolean | null
   last_restart_at?: string | null
+  created_at: string
+}
+
+export interface AppModule {
+  id: string
+  app_id: string
+  module_key: string
+  name: string
+  path_prefix: string
+  status: 'online' | 'maintenance' | 'offline'
+  maintenance_message: string | null
+  public_message: string | null
+  reboot_required: boolean | null
+  updated_at: string
+}
+
+export interface AppSignal {
+  id: string
+  app_id: string
+  source: string
+  signal_type: string
+  severity: 'info' | 'warn' | 'error'
+  title: string
+  body: string | null
+  metadata: Record<string, unknown> | null
   created_at: string
 }
 

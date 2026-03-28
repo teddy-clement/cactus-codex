@@ -55,7 +55,7 @@ export default async function UsersPage() {
             <div style={{ fontSize: '12px', color: '#6fa876' }}>{user.organisation || '—'}</div>
             <div><span className={`role ${ROLE_CLS[user.role]}`}>{user.role}</span></div>
             <div style={{ fontFamily: 'var(--mono)', fontSize: '10px', color: '#6fa876' }}>
-              {formatDate(user.last_login)}
+              {formatDate(user.last_login ?? null)}
             </div>
             <div><button className="ibtn" title="Modifier">✏</button></div>
           </div>
