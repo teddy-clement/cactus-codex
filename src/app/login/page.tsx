@@ -26,9 +26,13 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Identifiants incorrects.')
         setPassword('')
-      } else {
+      } else if (data.requiresOtp) {
         sessionStorage.setItem('cc_pending_email', email)
         router.push('/otp')
+      } else {
+        sessionStorage.removeItem('cc_pending_email')
+        router.push(data.redirectTo || '/dashboard')
+        router.refresh()
       }
     } catch {
       setError('Erreur réseau. Réessayez.')
@@ -49,7 +53,7 @@ export default function LoginPage() {
           <div className="login-badge">Cactus Codex · Secure Access Node</div>
           <div className="login-logo-wrap">
             <Image
-              src="/cactus-codex-logo.png"
+              src="/logoseulblanc-cactuscodex.png"
               alt="Logo Cactus Codex"
               width={176}
               height={176}
@@ -60,14 +64,14 @@ export default function LoginPage() {
           <h1 className="login-title">CACTUS CODEX</h1>
           <p className="login-subtitle">Operational Control Platform</p>
           <p className="login-copy">
-            Centre de pilotage premium pour applications, opérations, maintenance et supervision.
+            Centre de pilotage premium pour projets, applications, maintenance, supervision et diffusion de messages critiques.
           </p>
 
           <div className="login-status-row" aria-hidden="true">
             <span className="login-status-dot animate-pulse-dot" />
             <span>Système sécurisé</span>
             <span className="login-status-sep" />
-            <span>Accès restreint</span>
+            <span>Contrôle centralisé</span>
           </div>
         </div>
 
@@ -77,7 +81,7 @@ export default function LoginPage() {
               <div className="login-kicker">// 01 — Identification</div>
               <h2 className="login-card-title">Connexion au centre de contrôle</h2>
             </div>
-            <div className="login-card-chip">Encrypted Session</div>
+            <div className="login-card-chip">Session chiffrée</div>
           </div>
 
           {error && <div className="login-error">{error}</div>}
@@ -89,7 +93,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="t.clement@cactus-codex.com"
+                placeholder="nom@organisation.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -102,7 +106,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••••••"
+                placeholder="Saisissez votre mot de passe"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
@@ -110,14 +114,14 @@ export default function LoginPage() {
             </div>
 
             <button type="submit" className="login-submit" disabled={loading}>
-              <span>{loading ? 'Vérification en cours…' : 'Accéder au système'}</span>
+              <span>{loading ? 'Ouverture de session…' : 'Accéder au système'}</span>
               <span aria-hidden="true">→</span>
             </button>
           </form>
 
           <div className="login-card-footer">
             <span>Authentification sécurisée</span>
-            <span>OTP requis à l’étape suivante</span>
+            <span>Plateforme opérée par Cactus Codex</span>
           </div>
         </div>
       </section>

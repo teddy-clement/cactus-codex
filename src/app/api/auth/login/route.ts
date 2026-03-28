@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createServiceClient } from '@/lib/supabase/server'
-import { generateOTP, storeOTP } from '@/lib/auth'
+import { generateOTP, setSession, storeOTP } from '@/lib/auth'
 import { sendOTPEmail } from '@/lib/email'
 import { log } from '@/lib/logger'
 
-// Limite : 5 tentatives par IP toutes les 15 min
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+const REQUIRE_OTP = process.env.AUTH_REQUIRE_OTP === 'true'
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
@@ -31,51 +31,64 @@ export async function POST(req: NextRequest) {
   }
 
   let body: { email?: string; password?: string }
-  try { body = await req.json() }
-  catch { return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 }) }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
+  }
 
   const { email, password } = body
   if (!email || !password) {
     return NextResponse.json({ error: 'Email et mot de passe requis.' }, { status: 400 })
   }
 
+  const normalizedEmail = email.toLowerCase().trim()
   const supabase = createServiceClient()
 
-  // Récupérer l'utilisateur
   const { data: user } = await supabase
     .from('cc_users')
     .select('*')
-    .eq('email', email.toLowerCase())
+    .eq('email', normalizedEmail)
     .single()
 
   if (!user) {
-    await log('warn', `Tentative login échouée — email inconnu: ${email}`, 'Inconnu')
-    // Réponse générique pour éviter l'énumération d'emails
+    await log('warn', `Tentative login échouée — email inconnu: ${normalizedEmail}`, 'Inconnu')
     return NextResponse.json({ error: 'Identifiants incorrects.' }, { status: 401 })
   }
 
-  // Vérifier le mot de passe
   const validPassword = await bcrypt.compare(password, user.password_hash)
   if (!validPassword) {
-    await log('warn', `Tentative login échouée — ${email}`, 'Inconnu')
+    await log('warn', `Tentative login échouée — ${normalizedEmail}`, 'Inconnu')
     return NextResponse.json({ error: 'Identifiants incorrects.' }, { status: 401 })
   }
 
-  // Générer et envoyer l'OTP
+  if (!REQUIRE_OTP) {
+    await setSession(user)
+
+    await supabase
+      .from('cc_users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('email', normalizedEmail)
+
+    await log('ok', 'Connexion réussie — session directe', user.name)
+
+    return NextResponse.json({ success: true, requiresOtp: false, redirectTo: '/dashboard' })
+  }
+
   const otp = generateOTP()
-  await storeOTP(email, otp)
+  await storeOTP(normalizedEmail, otp)
 
   try {
-    await sendOTPEmail(email, otp, user.name)
+    await sendOTPEmail(normalizedEmail, otp, user.name)
   } catch (e) {
     console.error('[Login] Erreur envoi OTP:', e)
     return NextResponse.json(
-      { error: 'Erreur lors de l\'envoi du code. Réessayez.' },
+      { error: "Erreur lors de l'envoi du code. Réessayez." },
       { status: 500 }
     )
   }
 
-  await log('info', `Code OTP envoyé — ${email}`, user.name)
+  await log('info', `Code OTP envoyé — ${normalizedEmail}`, user.name)
 
-  return NextResponse.json({ success: true, message: 'Code envoyé.' })
+  return NextResponse.json({ success: true, requiresOtp: true, message: 'Code envoyé.' })
 }

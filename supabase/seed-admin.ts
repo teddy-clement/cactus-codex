@@ -15,8 +15,8 @@ const supabase = createClient(
 
 async function seedAdmin() {
   const email    = 't.clement@cactus-codex.com'
-  const password = 'tc8vyxA*'   // ← À changer en prod !
-  const name     = 'Teddy CLEMENT.'
+  const password = 'CactusCodex2026!'   // ← À changer en prod !
+  const name     = 'Teddy C.'
 
   console.log('🌵 Création du SUPERADMIN Cactus Codex...')
 
