@@ -7,6 +7,10 @@ const nextConfig = {
     serverComponentsExternalPackages: ['bcryptjs'],
   },
 
+  images: {
+    unoptimized: true,
+  },
+
   async headers() {
     return [
       // ── Routes publiques consommées par CoTrain (CORS) ──────────────
