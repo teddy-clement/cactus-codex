@@ -59,7 +59,7 @@ export default function Sidebar({ user }: { user: CCUser }) {
     <aside className="sidebar">
       <div className="sidebar-brand-panel">
         <div className="sidebar-brand-mark">
-          <Image src="/logoseulblanc-cactuscodex.png" alt="Cactus Codex" width={42} height={42} priority />
+          <Image src="/cactus-codex-logo.png" alt="Cactus Codex" width={42} height={42} priority />
         </div>
         <div className="sidebar-brand-copy">
           <div className="sidebar-brand-title">CACTUS CODEX</div>

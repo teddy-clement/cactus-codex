@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'CACTUS CODEX — Control Center',
   description: 'Panneau de gestion sécurisé — cactus-codex.com',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.ico' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
