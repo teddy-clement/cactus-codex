@@ -6,7 +6,14 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || 'fallback-dev-secret-change-in-production'
 )
 
-const PUBLIC_ROUTES = ['/login', '/otp', '/api/auth/login', '/api/auth/otp', '/api/auth/logout']
+const PUBLIC_ROUTES = [
+  '/login',
+  '/otp',
+  '/api/auth/login',
+  '/api/auth/otp',
+  '/api/auth/logout',
+  '/api/public',   // Routes publiques consommées par CoTrain — pas de session requise
+]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
