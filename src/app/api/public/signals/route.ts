@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
+// OPTIONS — preflight CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Methods': 'POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type,x-codex-ingest-key',
+    },
+  })
+}
+
 function ingestKey() {
-  return process.env.CACTUS_CODEX_INGEST_KEY || process.env.AUTH_SECRET || ''
+  // Utilise CACTUS_CODEX_INGEST_KEY en priorité.
+  // NE PAS utiliser AUTH_SECRET comme fallback — ce sont deux secrets distincts.
+  const key = process.env.CACTUS_CODEX_INGEST_KEY
+  if (!key) {
+    console.warn('[Codex] CACTUS_CODEX_INGEST_KEY non définie — endpoint /api/public/signals désactivé')
+  }
+  return key || ''
 }
 
 export async function POST(req: NextRequest) {

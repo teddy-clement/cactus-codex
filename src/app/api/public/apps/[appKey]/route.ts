@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { App, AppModule, AppSignal } from '@/types'
 
+// Répond aux pre-flight CORS envoyés par les navigateurs avant un fetch cross-origin
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
 function slugify(input: string) {
   return input
     .normalize('NFD')

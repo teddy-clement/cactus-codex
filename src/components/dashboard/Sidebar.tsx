@@ -22,6 +22,13 @@ const NAV: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Monitoring',
+    items: [
+      { label: 'Signaux CoTrain', icon: '◉', href: '/dashboard/signals', badge: 'LIVE', badgeColor: 'amber' },
+      { label: 'Broadcasts', icon: '📢', href: '/dashboard/broadcasts' },
+    ],
+  },
+  {
     group: 'Pilotage',
     items: [
       { label: 'Analytiques', icon: '▲', href: '/dashboard/analytics' },

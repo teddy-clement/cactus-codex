@@ -1,19 +1,25 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { App } from '@/types'
+import type { App, MaintenanceSchedule } from '@/types'
 
 export default function MaintenancePage() {
   const [apps, setApps] = useState<App[]>([])
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([])
   const [selectedApp, setSelectedApp] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [duration, setDuration] = useState('')
   const [message, setMessage] = useState('🔧 Maintenance en cours. Retour prévu dans ${durée}.')
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch('/api/apps').then(r => r.json()).then((data: App[]) => {
-      setApps(data)
-      if (data.length) setSelectedApp(data[0].id)
+    Promise.all([
+      fetch('/api/apps').then(r => r.json()),
+      fetch('/api/maintenance').then(r => r.json()),
+    ]).then(([appsData, schedulesData]: [App[], MaintenanceSchedule[]]) => {
+      setApps(appsData)
+      if (appsData.length) setSelectedApp(appsData[0].id)
+      setSchedules(schedulesData || [])
     })
   }, [])
 
@@ -38,7 +44,46 @@ export default function MaintenancePage() {
 
   async function scheduleMaintenance(e: React.FormEvent) {
     e.preventDefault()
-    showToast('⚙ Maintenance planifiée avec succès', 'wn')
+    if (!selectedApp || !scheduledAt || !duration) {
+      showToast('Champs requis manquants', 'er')
+      return
+    }
+    const selectedAppObj = apps.find(a => a.id === selectedApp)
+    setSaving(true)
+    const res = await fetch('/api/maintenance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_id: selectedApp,
+        app_name: selectedAppObj?.name || 'Application',
+        scheduled_at: scheduledAt,
+        estimated_duration: duration,
+        message,
+      }),
+    })
+    setSaving(false)
+    if (res.ok) {
+      const newSchedule = await res.json() as MaintenanceSchedule
+      setSchedules(prev => [...prev, newSchedule].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
+      setScheduledAt('')
+      setDuration('')
+      showToast('⚙ Maintenance planifiée avec succès', 'ok')
+    } else {
+      const err = await res.json()
+      showToast(err.error || 'Erreur lors de la planification', 'er')
+    }
+  }
+
+  async function deleteSchedule(id: string) {
+    const res = await fetch('/api/maintenance', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (res.ok) {
+      setSchedules(prev => prev.filter(s => s.id !== id))
+      showToast('Planification supprimée', 'ok')
+    }
   }
 
   return (
@@ -93,7 +138,7 @@ export default function MaintenancePage() {
               </div>
               <div className="g2-inner">
                 <div className="field">
-                  <label>Date & heure début</label>
+                  <label>Date &amp; heure début</label>
                   <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} required />
                 </div>
                 <div className="field">
@@ -105,11 +150,27 @@ export default function MaintenancePage() {
                 <label>Message utilisateurs</label>
                 <textarea rows={3} value={message} onChange={e => setMessage(e.target.value)} />
               </div>
-              <button type="submit" className="btn">Planifier →</button>
+              <button type="submit" className="btn" disabled={saving}>{saving ? 'Enregistrement…' : 'Planifier →'}</button>
             </form>
           </div>
         </div>
       </div>
+
+      {schedules.length > 0 && (
+        <div className="panel" style={{ marginTop: 17 }}>
+          <div className="ph"><div className="pht">Maintenances planifiées</div><div className="phg">// {schedules.length} entrée{schedules.length > 1 ? 's' : ''}</div></div>
+          {schedules.map(s => (
+            <div key={s.id} className="schedule-row">
+              <div className="schedule-info">
+                <span className="schedule-app">{s.app_name}</span>
+                <span className="schedule-date">{new Date(s.scheduled_at).toLocaleString('fr-FR')} — {s.estimated_duration}</span>
+                {s.message && <span className="schedule-msg">{s.message}</span>}
+              </div>
+              <button className="ibtn-del" onClick={() => deleteSchedule(s.id)} title="Supprimer">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {toast && <div className={`toast-fixed toast-${toast.type}`}>{toast.msg}</div>}
 
@@ -137,7 +198,16 @@ export default function MaintenancePage() {
         .field select{appearance:none;cursor:pointer}.field textarea{resize:none;line-height:1.6}
         .g2-inner{display:grid;grid-template-columns:1fr 1fr;gap:11px}
         .btn{display:block;width:100%;padding:13px;background:#1a4a2e;color:#4ade80;border:1px solid #2d6b45;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:6px}
-        .btn:hover{background:#2d6b45;color:#fff;box-shadow:0 0 26px rgba(74,222,128,.18);transform:translateY(-1px)}
+        .btn:hover:not(:disabled){background:#2d6b45;color:#fff;box-shadow:0 0 26px rgba(74,222,128,.18);transform:translateY(-1px)}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .schedule-row{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .schedule-row:last-child{border-bottom:none}
+        .schedule-info{display:flex;flex-direction:column;gap:3px;flex:1}
+        .schedule-app{font-weight:700;font-size:13px;color:#fff}
+        .schedule-date{font-family:'DM Mono',monospace;font-size:10px;color:#f59e0b}
+        .schedule-msg{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
+        .ibtn-del{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:5px;color:#ef4444;font-size:11px;padding:5px 9px;cursor:pointer;transition:all .18s;flex-shrink:0}
+        .ibtn-del:hover{background:rgba(239,68,68,.18)}
         .toast-fixed{position:fixed;bottom:20px;right:20px;background:#111a12;border:1px solid #233428;border-radius:9px;padding:12px 17px;font-family:'DM Mono',monospace;font-size:12px;color:#d8eedd;box-shadow:0 20px 40px rgba(0,0,0,.5);z-index:300;animation:slideUp .3s ease both}
         .toast-ok{border-left:3px solid #4ade80}.toast-wn{border-left:3px solid #f59e0b}.toast-er{border-left:3px solid #ef4444}
         @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -145,3 +215,4 @@ export default function MaintenancePage() {
     </>
   )
 }
+

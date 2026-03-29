@@ -142,3 +142,90 @@ CREATE INDEX IF NOT EXISTS idx_apps_status ON apps(status);
 CREATE INDEX IF NOT EXISTS idx_modules_app ON app_modules(app_id, status);
 CREATE INDEX IF NOT EXISTS idx_signals_app_ts ON app_signals(app_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_ts ON activity_logs(timestamp DESC);
+
+-- ════════════════════════════════════════════════════════════════
+-- RLS POLICIES — à exécuter après avoir activé RLS sur chaque table
+-- ════════════════════════════════════════════════════════════════
+
+-- service_role bypass (toutes les tables)
+-- Le service_role de Supabase bypasse le RLS nativement, mais on
+-- explicite les policies pour éviter tout blocage côté anon.
+
+-- cc_users : uniquement via service_role (jamais exposé en anon)
+CREATE POLICY "service_role full access on cc_users"
+  ON cc_users FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- otp_codes : uniquement via service_role
+CREATE POLICY "service_role full access on otp_codes"
+  ON otp_codes FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- apps : lecture publique (pour /api/public/apps), écriture service_role uniquement
+CREATE POLICY "public read apps"
+  ON apps FOR SELECT
+  TO anon, authenticated USING (true);
+
+CREATE POLICY "service_role write apps"
+  ON apps FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- app_modules : lecture publique, écriture service_role
+CREATE POLICY "public read app_modules"
+  ON app_modules FOR SELECT
+  TO anon, authenticated USING (true);
+
+CREATE POLICY "service_role write app_modules"
+  ON app_modules FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- app_signals : insertion publique (pour ingest depuis CoTrain), lecture service_role
+CREATE POLICY "public insert app_signals"
+  ON app_signals FOR INSERT
+  TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "service_role full access on app_signals"
+  ON app_signals FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- maintenance_schedules : lecture/écriture service_role uniquement
+CREATE POLICY "service_role full access on maintenance_schedules"
+  ON maintenance_schedules FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- roadmap_items : lecture publique pour dashboard, écriture service_role
+CREATE POLICY "public read roadmap_items"
+  ON roadmap_items FOR SELECT
+  TO anon, authenticated USING (true);
+
+CREATE POLICY "service_role write roadmap_items"
+  ON roadmap_items FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- activity_logs : lecture + écriture service_role uniquement
+CREATE POLICY "service_role full access on activity_logs"
+  ON activity_logs FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+-- ════════════════════════════════════════════════════════════════
+-- TABLE codex_broadcasts — historique des broadcasts envoyés vers CoTrain
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS codex_broadcasts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  titre TEXT NOT NULL,
+  message TEXT NOT NULL,
+  niveau TEXT NOT NULL DEFAULT 'moyen' CHECK (niveau IN ('faible', 'moyen', 'important')),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_by TEXT NOT NULL DEFAULT 'Système',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  delivered BOOLEAN DEFAULT FALSE,
+  error TEXT
+);
+
+ALTER TABLE codex_broadcasts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "service_role full access on codex_broadcasts"
+  ON codex_broadcasts FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_codex_broadcasts_ts ON codex_broadcasts(created_at DESC);
