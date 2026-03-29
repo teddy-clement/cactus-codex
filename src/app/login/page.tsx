@@ -1,5 +1,4 @@
 'use client'
-import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -52,12 +51,10 @@ export default function LoginPage() {
         <div className="login-hero">
           <div className="login-badge">Cactus Codex · Secure Access Node</div>
           <div className="login-logo-wrap">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/cactus-codex-logo.png"
               alt="Logo Cactus Codex"
-              width={176}
-              height={176}
-              priority
               className="login-logo"
             />
           </div>

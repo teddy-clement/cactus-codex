@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import type { CCUser } from '@/types'
 
@@ -59,7 +58,8 @@ export default function Sidebar({ user }: { user: CCUser }) {
     <aside className="sidebar">
       <div className="sidebar-brand-panel">
         <div className="sidebar-brand-mark">
-          <Image src="/cactus-codex-logo.png" alt="Cactus Codex" width={42} height={42} priority />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/cactus-codex-logo.png" alt="Cactus Codex" width={42} height={42} style={{ objectFit: "contain" }} />
         </div>
         <div className="sidebar-brand-copy">
           <div className="sidebar-brand-title">CACTUS CODEX</div>
