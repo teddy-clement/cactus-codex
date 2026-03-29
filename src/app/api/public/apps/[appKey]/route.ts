@@ -2,34 +2,30 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { App, AppModule, AppSignal } from '@/types'
 
-// Répond aux pre-flight CORS envoyés par les navigateurs avant un fetch cross-origin
+// Headers CORS ajoutés sur CHAQUE réponse (OPTIONS et GET)
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+}
+
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
-      'Access-Control-Allow-Methods': 'GET,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
+  return new NextResponse(null, { status: 204, headers: corsHeaders() })
 }
 
 function slugify(input: string) {
-  return input
-    .normalize('NFD')
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
+  return input.normalize('NFD').replace(/[^\w\s-]/g, '').trim().toLowerCase().replace(/\s+/g, '-')
 }
 
 export async function GET(_: Request, { params }: { params: { appKey: string } }) {
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('apps').select('*').order('name')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: corsHeaders() })
 
   const app = ((data as App[]) || []).find((item) => (item.app_key || slugify(item.name)) === params.appKey)
-  if (!app) return NextResponse.json({ error: 'Application introuvable.' }, { status: 404 })
+  if (!app) return NextResponse.json({ error: 'Application introuvable.' }, { status: 404, headers: corsHeaders() })
 
   const [{ data: modules }, { data: signals }] = await Promise.all([
     supabase.from('app_modules').select('*').eq('app_id', app.id).order('path_prefix'),
@@ -67,5 +63,5 @@ export async function GET(_: Request, { params }: { params: { appKey: string } }
       latest: signalList.slice(0, 5),
     },
     updated_at: new Date().toISOString(),
-  })
+  }, { headers: corsHeaders() })
 }
