@@ -59,7 +59,7 @@ export default function Sidebar({ user }: { user: CCUser }) {
       <div className="sidebar-brand-panel">
         <div className="sidebar-brand-mark">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logoseul-cactuscodex.png" alt="Cactus Codex" width={42} height={42} style={{ objectFit: "contain" }} />
+          <img src="/logoseulblanc-cactuscodex.png" alt="Cactus Codex" width={42} height={42} style={{ objectFit: "contain" }} />
         </div>
         <div className="sidebar-brand-copy">
           <div className="sidebar-brand-title">CACTUS CODEX</div>

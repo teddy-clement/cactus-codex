@@ -53,7 +53,7 @@ export default function LoginPage() {
           <div className="login-logo-wrap">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logoseul-cactuscodex.png"
+              src="/logoseulblanc-cactuscodex.png"
               alt="Logo Cactus Codex"
               className="login-logo"
             />
