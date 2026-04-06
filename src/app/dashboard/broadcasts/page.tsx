@@ -72,6 +72,12 @@ export default function BroadcastsPage() {
 
   useEffect(() => { loadActive() }, [loadActive])
 
+  // Auto-refresh broadcasts actifs toutes les 30s
+  useEffect(() => {
+    const interval = setInterval(() => loadActive(), 30000)
+    return () => clearInterval(interval)
+  }, [loadActive])
+
   async function stopBroadcast(id: number, broadcastTitre: string) {
     setStoppingId(id)
     const res = await fetch('/api/app-broadcasts', {

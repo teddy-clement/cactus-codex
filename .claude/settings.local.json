@@ -4,7 +4,8 @@
       "Bash(xargs grep:*)",
       "Bash(npx next:*)",
       "Bash(mkdir -p src/app/api/app-broadcasts)",
-      "Bash(cp src/app/api/cotrain-broadcasts/route.ts src/app/api/app-broadcasts/route.ts)"
+      "Bash(cp src/app/api/cotrain-broadcasts/route.ts src/app/api/app-broadcasts/route.ts)",
+      "Bash(npm install:*)"
     ]
   }
 }
