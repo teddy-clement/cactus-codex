@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { App, AppModule, AppSignal } from '@/types'
 
-// Headers CORS ajoutés sur CHAQUE réponse (OPTIONS et GET)
+// ── CORS : origines autorisées uniquement (jamais de wildcard) ──
 function corsHeaders() {
+  const origins = process.env.ALLOWED_ORIGINS
+  if (!origins) {
+    console.warn('[Codex] ALLOWED_ORIGINS non défini — CORS refusé par défaut')
+  }
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origins || '',
     'Access-Control-Allow-Methods': 'GET,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   }

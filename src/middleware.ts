@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
-const SECRET = new TextEncoder().encode(
-  process.env.AUTH_SECRET || 'fallback-dev-secret-change-in-production'
-)
+if (!process.env.AUTH_SECRET) {
+  throw new Error('[FATAL] AUTH_SECRET manquant — impossible de vérifier les sessions. Définir AUTH_SECRET dans .env')
+}
+const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET)
 
 const PUBLIC_ROUTES = [
   '/login',
@@ -12,7 +13,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/otp',
   '/api/auth/logout',
-  '/api/public',   // Routes publiques consommées par CoTrain — pas de session requise
+  '/api/public',   // Routes publiques consommées par les apps clientes — pas de session requise
 ]
 
 export async function middleware(request: NextRequest) {

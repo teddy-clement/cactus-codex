@@ -23,7 +23,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Monitoring',
     items: [
-      { label: 'Signaux CoTrain', icon: '◉', href: '/dashboard/signals', badge: 'LIVE', badgeColor: 'amber' },
+      { label: 'Signaux structurels', icon: '◉', href: '/dashboard/signals', badge: 'LIVE', badgeColor: 'amber' },
       { label: 'Broadcasts', icon: '📢', href: '/dashboard/broadcasts' },
     ],
   },
@@ -31,12 +31,14 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: 'Pilotage',
     items: [
       { label: 'Analytiques', icon: '▲', href: '/dashboard/analytics' },
+      { label: 'Chantiers', icon: '◧', href: '/dashboard/chantiers' },
       { label: 'Roadmap', icon: '◫', href: '/dashboard/roadmap' },
     ],
   },
   {
     group: 'Administration',
     items: [
+      { label: 'Remontées', icon: '◈', href: '/dashboard/feedbacks' },
       { label: 'Utilisateurs', icon: '◉', href: '/dashboard/users' },
       { label: 'Journaux', icon: '≡', href: '/dashboard/logs' },
     ],

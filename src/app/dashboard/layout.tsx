@@ -2,20 +2,23 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import Sidebar from '@/components/dashboard/Sidebar'
 import Topbar from '@/components/dashboard/Topbar'
+import DashboardShell from '@/components/dashboard/DashboardShell'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session) redirect('/login')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar user={session.user} />
-      <div style={{ marginLeft: '248px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Topbar user={session.user} />
-        <main style={{ flex: 1, padding: '24px 26px' }}>
-          {children}
-        </main>
+    <DashboardShell>
+      <div className="flex min-h-screen">
+        <Sidebar user={session.user} />
+        <div className="ml-[248px] flex-1 flex flex-col min-h-screen">
+          <Topbar user={session.user} />
+          <main className="flex-1 px-[26px] py-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </DashboardShell>
   )
 }

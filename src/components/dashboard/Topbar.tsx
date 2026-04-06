@@ -5,13 +5,17 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CCUser } from '@/types'
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
-  '/dashboard': { title: 'Tableau de bord', sub: '// vue générale et doctrine de pilotage' },
-  '/dashboard/apps': { title: 'Centre de contrôle applicatif', sub: '// maintenance, messages publics, redémarrages' },
-  '/dashboard/maintenance': { title: 'Maintenance', sub: '// statut, planification, retour en ligne' },
-  '/dashboard/analytics': { title: 'Analytiques', sub: '// métriques et lecture d’usage' },
-  '/dashboard/roadmap': { title: 'Roadmap', sub: '// backlog, versions, priorités' },
-  '/dashboard/users': { title: 'Utilisateurs', sub: '// droits d’accès et rôles' },
-  '/dashboard/logs': { title: "Journal d'activité", sub: '// traçabilité, audit et sécurité' },
+  "/dashboard": { title: "Tableau de bord", sub: "// vue generale et doctrine de pilotage" },
+  "/dashboard/apps": { title: "Centre de controle applicatif", sub: "// maintenance, messages publics, redemarrages" },
+  "/dashboard/maintenance": { title: "Maintenance", sub: "// statut, planification, retour en ligne" },
+  "/dashboard/analytics": { title: "Analytiques", sub: "// metriques et lecture d’usage" },
+  "/dashboard/roadmap": { title: "Roadmap", sub: "// backlog, versions, priorites" },
+  "/dashboard/signals": { title: "Signaux structurels", sub: "// telemetrie et alertes des apps" },
+  "/dashboard/broadcasts": { title: "Broadcasts", sub: "// diffusion de messages vers les apps" },
+  "/dashboard/feedbacks": { title: "Remontees utilisateurs", sub: "// feedbacks et bugs des apps clientes" },
+  "/dashboard/chantiers": { title: "Suivi chantiers", sub: "// avancement des developpements" },
+  "/dashboard/users": { title: "Utilisateurs", sub: "// droits d’acces et roles" },
+  "/dashboard/logs": { title: "Journal d’activite", sub: "// tracabilite, audit et securite" },
 }
 
 export default function Topbar({ user }: { user: CCUser }) {

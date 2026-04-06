@@ -72,7 +72,7 @@ export interface RoadmapItem {
   description: string
   status: 'done' | 'active' | 'todo'
   progress: number
-  tag: 'cotrain' | 'infra' | 'ux'
+  tag: string
   version: string | null
   priority: 'high' | 'medium' | 'low'
   created_at: string
@@ -84,6 +84,32 @@ export interface ActivityLog {
   level: 'ok' | 'info' | 'warn' | 'error'
   message: string
   user: string
+}
+
+export interface UserFeedback {
+  id: string
+  app_key: string
+  user_email: string | null
+  user_role: string | null
+  message: string
+  severity: 'info' | 'warn' | 'critical'
+  status: 'nouveau' | 'en_cours' | 'résolu' | 'ignoré'
+  admin_note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Chantier {
+  id: string
+  app_key: string
+  titre: string
+  description: string | null
+  status: 'a_faire' | 'en_cours' | 'bloque' | 'termine'
+  priority: 'high' | 'medium' | 'low'
+  date_debut: string | null
+  date_fin_prevue: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Session {

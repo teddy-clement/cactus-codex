@@ -8,7 +8,7 @@ async function getRoadmap() {
 }
 
 const DOT: Record<string, string> = { done:'dot-done', active:'dot-active', todo:'dot-todo' }
-const TAG: Record<string, string> = { cotrain:'tag-ct', infra:'tag-in', ux:'tag-ux' }
+const TAG_CLS: Record<string, string> = { cotrain:'tag-ct', infra:'tag-in', ux:'tag-ux' }
 const PROG_COLOR: Record<string, string> = {
   done: '#4ade80', active: '#f59e0b', todo: '#2e4432'
 }
@@ -23,7 +23,7 @@ export default async function RoadmapPage() {
     <>
       <div className="g2">
         <div className="panel">
-          <div className="ph"><div className="pht">CoTrain V2 — Roadmap globale</div><div className="phg">// 5 blocs</div></div>
+          <div className="ph"><div className="pht">Roadmap globale</div><div className="phg">// {blocs.length} blocs</div></div>
           <div className="panel-body">
             {blocs.map(item => (
               <div key={item.id} className="rm-item">
@@ -35,7 +35,7 @@ export default async function RoadmapPage() {
                     <div className="pf" style={{ width: `${item.progress}%`, background: PROG_COLOR[item.status] }} />
                   </div>
                 </div>
-                <div className={`rm-tag ${TAG[item.tag]}`}>
+                <div className={`rm-tag ${TAG_CLS[item.tag] || 'tag-ct'}`}>
                   {item.status === 'done' ? '✓ Done' : `${item.progress}%${item.status === 'active' ? ' ◆' : ''}`}
                 </div>
               </div>
@@ -58,7 +58,7 @@ export default async function RoadmapPage() {
                     {item.version && <span>{item.version}</span>}
                   </div>
                 </div>
-                <div className={`rm-tag ${TAG[item.tag]}`}>{item.tag === 'cotrain' ? 'CoTrain' : item.tag === 'infra' ? 'Infra' : 'UX'}</div>
+                <div className={`rm-tag ${TAG_CLS[item.tag] || 'tag-ct'}`}>{item.tag.toUpperCase()}</div>
               </div>
             ))}
           </div>

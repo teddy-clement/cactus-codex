@@ -34,6 +34,15 @@ const config: Config = {
         display: ['Barlow Condensed', 'sans-serif'],
         body:    ['Barlow', 'sans-serif'],
       },
+      keyframes: {
+        slideUp: {
+          from: { opacity: '0', transform: 'translateY(20px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        slideUp: 'slideUp .3s cubic-bezier(.22,.68,0,1.2) both',
+      },
     },
   },
   plugins: [],

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useToast } from '@/components/ui/Toast'
 import type { App, MaintenanceSchedule } from '@/types'
 
 export default function MaintenancePage() {
@@ -9,8 +10,11 @@ export default function MaintenancePage() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [duration, setDuration] = useState('')
   const [message, setMessage] = useState('🔧 Maintenance en cours. Retour prévu dans ${durée}.')
-  const [toast, setToast] = useState<{ msg: string; type: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { showToast } = useToast()
 
   useEffect(() => {
     Promise.all([
@@ -20,25 +24,29 @@ export default function MaintenancePage() {
       setApps(appsData)
       if (appsData.length) setSelectedApp(appsData[0].id)
       setSchedules(schedulesData || [])
-    })
-  }, [])
+    }).catch(() => showToast('Erreur de chargement', 'er'))
+  }, [showToast])
 
   const maintApps = apps.filter(a => a.status === 'maintenance')
 
-  function showToast(msg: string, type = 'ok') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 3500)
-  }
-
   async function bringOnline(app: App) {
-    const res = await fetch('/api/apps', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: app.id, status: 'online' }),
-    })
-    if (res.ok) {
-      setApps(prev => prev.map(a => a.id === app.id ? { ...a, status: 'online', maintenance_since: null } : a))
-      showToast(`✓ ${app.name} remis en ligne`, 'ok')
+    setRestoringId(app.id)
+    try {
+      const res = await fetch('/api/apps', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: app.id, status: 'online' }),
+      })
+      if (res.ok) {
+        setApps(prev => prev.map(a => a.id === app.id ? { ...a, status: 'online', maintenance_since: null } : a))
+        showToast(`✓ ${app.name} remis en ligne`, 'ok')
+      } else {
+        showToast('Erreur lors de la remise en ligne', 'er')
+      }
+    } catch {
+      showToast('Erreur réseau', 'er')
+    } finally {
+      setRestoringId(null)
     }
   }
 
@@ -50,39 +58,53 @@ export default function MaintenancePage() {
     }
     const selectedAppObj = apps.find(a => a.id === selectedApp)
     setSaving(true)
-    const res = await fetch('/api/maintenance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        app_id: selectedApp,
-        app_name: selectedAppObj?.name || 'Application',
-        scheduled_at: scheduledAt,
-        estimated_duration: duration,
-        message,
-      }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      const newSchedule = await res.json() as MaintenanceSchedule
-      setSchedules(prev => [...prev, newSchedule].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
-      setScheduledAt('')
-      setDuration('')
-      showToast('⚙ Maintenance planifiée avec succès', 'ok')
-    } else {
-      const err = await res.json()
-      showToast(err.error || 'Erreur lors de la planification', 'er')
+    try {
+      const res = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          app_id: selectedApp,
+          app_name: selectedAppObj?.name || 'Application',
+          scheduled_at: scheduledAt,
+          estimated_duration: duration,
+          message,
+        }),
+      })
+      if (res.ok) {
+        const newSchedule = await res.json() as MaintenanceSchedule
+        setSchedules(prev => [...prev, newSchedule].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
+        setScheduledAt('')
+        setDuration('')
+        showToast('⚙ Maintenance planifiée avec succès', 'ok')
+      } else {
+        const err = await res.json()
+        showToast(err.error || 'Erreur lors de la planification', 'er')
+      }
+    } catch {
+      showToast('Erreur réseau', 'er')
+    } finally {
+      setSaving(false)
     }
   }
 
   async function deleteSchedule(id: string) {
-    const res = await fetch('/api/maintenance', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    if (res.ok) {
-      setSchedules(prev => prev.filter(s => s.id !== id))
-      showToast('Planification supprimée', 'ok')
+    setDeletingId(id)
+    try {
+      const res = await fetch('/api/maintenance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (res.ok) {
+        setSchedules(prev => prev.filter(s => s.id !== id))
+        showToast('Planification supprimée', 'ok')
+      } else {
+        showToast('Erreur lors de la suppression', 'er')
+      }
+    } catch {
+      showToast('Erreur réseau', 'er')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -98,7 +120,9 @@ export default function MaintenancePage() {
               {' · '}{new Date().toLocaleDateString('fr-FR')}
             </div>
           </div>
-          <button className="btn-online" onClick={() => bringOnline(app)}>Remettre en ligne</button>
+          <button className="btn-online" onClick={() => bringOnline(app)} disabled={restoringId === app.id}>
+            {restoringId === app.id ? '…' : 'Remettre en ligne'}
+          </button>
         </div>
       ))}
 
@@ -150,14 +174,14 @@ export default function MaintenancePage() {
                 <label>Message utilisateurs</label>
                 <textarea rows={3} value={message} onChange={e => setMessage(e.target.value)} />
               </div>
-              <button type="submit" className="btn" disabled={saving}>{saving ? 'Enregistrement…' : 'Planifier →'}</button>
+              <button type="submit" className="btn-action" disabled={saving}>{saving ? 'Enregistrement…' : 'Planifier →'}</button>
             </form>
           </div>
         </div>
       </div>
 
       {schedules.length > 0 && (
-        <div className="panel" style={{ marginTop: 17 }}>
+        <div className="panel mt-[17px]">
           <div className="ph"><div className="pht">Maintenances planifiées</div><div className="phg">// {schedules.length} entrée{schedules.length > 1 ? 's' : ''}</div></div>
           {schedules.map(s => (
             <div key={s.id} className="schedule-row">
@@ -166,53 +190,13 @@ export default function MaintenancePage() {
                 <span className="schedule-date">{new Date(s.scheduled_at).toLocaleString('fr-FR')} — {s.estimated_duration}</span>
                 {s.message && <span className="schedule-msg">{s.message}</span>}
               </div>
-              <button className="ibtn-del" onClick={() => deleteSchedule(s.id)} title="Supprimer">✕</button>
+              <button className="ibtn-del" onClick={() => deleteSchedule(s.id)} disabled={deletingId === s.id} title="Supprimer">
+                {deletingId === s.id ? '…' : '✕'}
+              </button>
             </div>
           ))}
         </div>
       )}
-
-      {toast && <div className={`toast-fixed toast-${toast.type}`}>{toast.msg}</div>}
-
-      <style jsx>{`
-        .g2{display:grid;grid-template-columns:1fr 1fr;gap:17px}
-        .maint-banner{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:8px;padding:15px 19px;display:flex;align-items:center;gap:13px;margin-bottom:17px}
-        .mb-icon{font-size:17px;flex-shrink:0}.mb-text{flex:1}
-        .mb-title{font-weight:600;color:#f59e0b;font-size:13px;margin-bottom:2px}
-        .mb-sub{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
-        .btn-online{padding:8px 15px;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;letter-spacing:.08em;cursor:pointer;background:rgba(74,222,128,.08);color:#4ade80;border:1px solid rgba(74,222,128,.22);transition:all .2s;flex-shrink:0}
-        .btn-online:hover{background:rgba(74,222,128,.15);box-shadow:0 0 18px rgba(74,222,128,.1)}
-        .no-maint{background:rgba(74,222,128,.04);border:1px solid rgba(74,222,128,.12);border-radius:8px;padding:16px 20px;font-family:'DM Mono',monospace;font-size:12px;color:#4ade80;margin-bottom:17px}
-        .panel{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden}
-        .ph{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-        .pht{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#fff;letter-spacing:.03em}
-        .phg{font-family:'DM Mono',monospace;font-size:9px;color:#384e3c;letter-spacing:.17em;text-transform:uppercase}
-        .panel-body{padding:19px}
-        .info-grid{display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-family:'DM Mono',monospace;font-size:11px;line-height:2}
-        .info-grid>:nth-child(odd){color:#384e3c}.info-grid>:nth-child(even){color:#d8eedd}
-        .msg-box{margin-top:12px;padding:13px;background:#0a120c;border:1px solid #233428;border-radius:5px;font-family:'DM Mono',monospace;font-size:11px;color:#6fa876;line-height:1.8}
-        .field{margin-bottom:15px}
-        .field label{display:block;font-family:'DM Mono',monospace;font-size:9px;color:#384e3c;letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
-        .field input,.field select,.field textarea{width:100%;background:#0a120c;border:1px solid #233428;border-radius:5px;padding:11px 13px;color:#d8eedd;font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .17s}
-        .field input:focus,.field select:focus,.field textarea:focus{border-color:#2d6b45;box-shadow:0 0 0 3px rgba(74,222,128,.07)}
-        .field select{appearance:none;cursor:pointer}.field textarea{resize:none;line-height:1.6}
-        .g2-inner{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-        .btn{display:block;width:100%;padding:13px;background:#1a4a2e;color:#4ade80;border:1px solid #2d6b45;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:6px}
-        .btn:hover:not(:disabled){background:#2d6b45;color:#fff;box-shadow:0 0 26px rgba(74,222,128,.18);transform:translateY(-1px)}
-        .btn:disabled{opacity:.5;cursor:not-allowed}
-        .schedule-row{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
-        .schedule-row:last-child{border-bottom:none}
-        .schedule-info{display:flex;flex-direction:column;gap:3px;flex:1}
-        .schedule-app{font-weight:700;font-size:13px;color:#fff}
-        .schedule-date{font-family:'DM Mono',monospace;font-size:10px;color:#f59e0b}
-        .schedule-msg{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
-        .ibtn-del{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:5px;color:#ef4444;font-size:11px;padding:5px 9px;cursor:pointer;transition:all .18s;flex-shrink:0}
-        .ibtn-del:hover{background:rgba(239,68,68,.18)}
-        .toast-fixed{position:fixed;bottom:20px;right:20px;background:#111a12;border:1px solid #233428;border-radius:9px;padding:12px 17px;font-family:'DM Mono',monospace;font-size:12px;color:#d8eedd;box-shadow:0 20px 40px rgba(0,0,0,.5);z-index:300;animation:slideUp .3s ease both}
-        .toast-ok{border-left:3px solid #4ade80}.toast-wn{border-left:3px solid #f59e0b}.toast-er{border-left:3px solid #ef4444}
-        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-      `}</style>
     </>
   )
 }
-

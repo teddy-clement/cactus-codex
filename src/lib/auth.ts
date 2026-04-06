@@ -3,9 +3,10 @@ import { cookies } from 'next/headers'
 import { createServiceClient } from './supabase/server'
 import type { CCUser, Session } from '@/types'
 
-const SECRET = new TextEncoder().encode(
-  process.env.AUTH_SECRET || 'fallback-dev-secret-change-in-production'
-)
+if (!process.env.AUTH_SECRET) {
+  throw new Error('[FATAL] AUTH_SECRET manquant — impossible de signer les sessions. Définir AUTH_SECRET dans .env')
+}
+const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET)
 const COOKIE_NAME = 'cc_session'
 const SESSION_DURATION = 60 * 60 * 8 // 8 heures
 

@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
+// ── CORS : origines autorisées uniquement ──
+function corsOrigin() {
+  const origins = process.env.ALLOWED_ORIGINS
+  if (!origins) {
+    console.warn('[Codex] ALLOWED_ORIGINS non défini — CORS refusé par défaut')
+    return ''
+  }
+  return origins
+}
+
 // OPTIONS — preflight CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Origin': corsOrigin(),
       'Access-Control-Allow-Methods': 'POST,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type,x-codex-ingest-key',
     },
@@ -30,7 +40,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const appKey = typeof body.app_key === 'string' ? body.app_key : 'cotrain'
+  if (typeof body.app_key !== 'string' || !body.app_key.trim()) {
+    return NextResponse.json({ error: 'app_key requis.' }, { status: 400 })
+  }
+  const appKey = body.app_key.trim()
   const supabase = createServiceClient()
 
   const { data: app } = await supabase.from('apps').select('id').eq('app_key', appKey).single()
@@ -38,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const payload = {
     app_id: app.id,
-    source: typeof body.source === 'string' ? body.source : 'cotrain',
+    source: typeof body.source === 'string' ? body.source : appKey,
     signal_type: typeof body.signal_type === 'string' ? body.signal_type : 'event',
     severity: body.severity === 'warn' || body.severity === 'error' ? body.severity : 'info',
     title: typeof body.title === 'string' ? body.title : 'Signal',
