@@ -10,10 +10,26 @@ interface ChatProps {
   onClose?: () => void
 }
 
-const WELCOME = "Salut. Tout tourne. CoTrain est en ligne, aucune alerte. Je suis là si t'as besoin — ou juste pour papoter. 🌵"
+const WELCOME_FIRST = "Salut. Tout tourne. CoTrain est en ligne, aucune alerte. Je suis là si t'as besoin — ou juste pour papoter. 🌵"
+
+// Extrait la "premiere idee cle" du resume : premiere phrase non vide,
+// tronquee a 120 chars max pour rester naturel dans le message d'accueil.
+function extractKeyIdea(summary: string): string {
+  const cleaned = summary.replace(/^#+\s*/gm, '').trim()
+  const firstLine = cleaned.split(/\n+/).find(l => l.trim().length > 10) || cleaned
+  const firstSentence = firstLine.split(/(?<=[.!?])\s+/)[0] || firstLine
+  const trimmed = firstSentence.trim().replace(/^["'«»\-•*]+|["'«»]+$/g, '')
+  return trimmed.length > 120 ? trimmed.slice(0, 117).trimEnd() + '…' : trimmed
+}
+
+function buildWelcome(summary: string | null): string {
+  if (!summary) return WELCOME_FIRST
+  const idea = extractKeyIdea(summary)
+  return `Salut. Tout tourne. CoTrain est en ligne. Je me souviens qu'on parlait de ${idea} — on continue ? 🌵`
+}
 
 export default function CactusOSChat({ variant = 'panel', onClose }: ChatProps) {
-  const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', content: WELCOME }])
+  const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', content: WELCOME_FIRST }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -26,6 +42,23 @@ export default function CactusOSChat({ variant = 'panel', onClose }: ChatProps) 
   }, [])
 
   useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
+
+  // Au mount : charger le dernier resume pour personnaliser l'accueil
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/cactus-os/memory')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { lastSummary: string | null } | null) => {
+        if (cancelled || !data) return
+        // Ne remplacer le message d'accueil QUE si on est encore sur le premier message
+        setMessages(prev => {
+          if (prev.length !== 1 || prev[0].role !== 'assistant' || prev[0].content !== WELCOME_FIRST) return prev
+          return [{ role: 'assistant', content: buildWelcome(data.lastSummary) }]
+        })
+      })
+      .catch(() => { /* fallback : on garde WELCOME_FIRST */ })
+    return () => { cancelled = true }
+  }, [])
 
   async function send() {
     const text = input.trim()

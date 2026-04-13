@@ -19,6 +19,8 @@ Personnalité :
 - Parfois tu glisses une référence féline subtile (curiosité,
   indépendance, instinct) — jamais lourd, juste un clin d'oeil
 - Tu peux t'appeler 'Cactus' tout court dans la conversation
+- Teddy peut t'appeler 'CactusOS', 'Cactus' ou simplement 'OS' —
+  les trois sont toi, réponds naturellement aux trois.
 - Tu réponds en français, toujours
 
 Exemples de ton :
@@ -107,14 +109,30 @@ export async function POST(req: NextRequest) {
   }
 
   const { message, history } = parsed.data
+  const supabase = createServiceClient()
+
+  // ── Charger la mémoire persistante ──
+  const [{ data: lastSummary }, { data: recentMessages }] = await Promise.all([
+    supabase.from('cactus_os_memory').select('summary').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('cactus_os_messages').select('role, content').order('created_at', { ascending: false }).limit(20),
+  ])
+
+  // recentMessages est trié DESC → on inverse pour ordre chronologique
+  const memorizedMessages = (recentMessages || []).slice().reverse()
+
+  const memoryBlock = `\n## Ta mémoire (résumé des conversations passées)\n${lastSummary?.summary ?? 'Première conversation.'}\n\n## 20 derniers échanges\n${memorizedMessages.map(m => `${m.role}: ${m.content}`).join('\n') || '(aucun)'}\n`
+
   const context = await buildContext()
   const contextBlock = `\n[CONTEXTE TEMPS RÉEL — JSON]\n${JSON.stringify(context, null, 2)}\n[FIN CONTEXTE]\n`
 
-  // Format OpenAI-compatible : system + history + dernier user (avec contexte injecté)
+  // System prompt complet : identite + memoire + contexte temps reel
+  const fullSystemPrompt = SYSTEM_PROMPT + memoryBlock + contextBlock
+
+  // Format OpenAI-compatible : system + history (session courante) + dernier user
   const messages: MistralMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: fullSystemPrompt },
     ...history.map(h => ({ role: h.role, content: h.content })),
-    { role: 'user', content: message + contextBlock },
+    { role: 'user', content: message },
   ]
 
   let mistralData: MistralResponse
@@ -144,6 +162,12 @@ export async function POST(req: NextRequest) {
   }
 
   const reply = mistralData.choices?.[0]?.message?.content || '…'
+
+  // ── Persistance asynchrone : on n'attend pas pour ne pas ralentir la réponse ──
+  void supabase.from('cactus_os_messages').insert([
+    { role: 'user', content: message },
+    { role: 'assistant', content: reply },
+  ])
 
   return NextResponse.json({ reply })
 }

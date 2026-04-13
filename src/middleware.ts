@@ -19,12 +19,14 @@ const PUBLIC_ROUTES = [
   '/api/auth/resend-otp',
   '/api/public',
   '/api/health',
+  '/api/cactus-os/summarize',  // Cron Vercel — protégé par CRON_SECRET en interne
 ]
 
 // Routes exemptees de la protection CSRF (webhooks externes + flow auth avant token)
 const CSRF_EXEMPT_PREFIXES = [
-  '/api/public/',  // webhooks depuis apps clientes (no Origin header possible)
-  '/api/auth/',    // flow login / otp : Origin normalement present, mais exemption defensive
+  '/api/public/',                // webhooks depuis apps clientes (no Origin header possible)
+  '/api/auth/',                  // flow login / otp : Origin normalement present, mais exemption defensive
+  '/api/cactus-os/summarize',    // Cron Vercel : pas d'Origin, protégé par CRON_SECRET
 ]
 
 // Build CSP avec nonce dynamique (compatible Next.js inline scripts/styles)

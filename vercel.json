@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cactus-os/summarize",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
