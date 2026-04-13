@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import CactusOSChat from '@/components/cactus-os/Chat'
 
 type Snapshot = {
@@ -49,13 +50,19 @@ export default function CactusOSPage() {
       {/* ── Panneau gauche : contexte ── */}
       <aside className="hidden lg:flex flex-col gap-4 overflow-y-auto">
         <div className="glass p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center text-base"
-                 style={{ background: 'rgba(74,222,128,.15)', border: '1px solid rgba(74,222,128,.3)', color: '#4ade80' }}>
-              ✦
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 p-1"
+                 style={{ background: 'rgba(74,222,128,.15)', border: '1px solid rgba(74,222,128,.3)' }}>
+              <Image
+                src="/cactus-os-logo.png"
+                alt="CactusOS"
+                width={48}
+                height={48}
+                className="object-contain"
+              />
             </div>
             <div>
-              <div className="font-display text-sm font-bold text-white tracking-wide">CactusOS</div>
+              <div className="font-display text-base font-bold text-white tracking-wide">CactusOS</div>
               <div className="font-mono text-[9px] text-[#6fa876] tracking-wider">Contexte temps réel</div>
             </div>
           </div>

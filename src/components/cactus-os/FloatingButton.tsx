@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import CactusOSChat from './Chat'
 
@@ -20,7 +21,7 @@ export default function CactusOSFloating() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir CactusOS"
-        className={`fixed z-40 w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all
+        className={`fixed z-40 w-12 h-12 rounded-full flex items-center justify-center transition-all
           ${open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100 hover:scale-110'}`}
         style={{
           right: 'max(env(safe-area-inset-right, 0px) + 20px, 20px)',
@@ -28,10 +29,15 @@ export default function CactusOSFloating() {
           background: 'radial-gradient(circle at 30% 20%, rgba(74,222,128,.4), transparent 60%), #0c1610',
           border: '1px solid rgba(74,222,128,.5)',
           boxShadow: '0 0 24px rgba(74,222,128,.3), 0 8px 24px rgba(0,0,0,.4)',
-          color: '#4ade80',
         }}
       >
-        ✦
+        <Image
+          src="/cactus-os-logo.png"
+          alt="CactusOS"
+          width={32}
+          height={32}
+          className="object-contain"
+        />
       </button>
 
       {/* Overlay */}

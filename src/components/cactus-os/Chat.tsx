@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import Image from 'next/image'
 import { MessageContent } from './actions'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
@@ -68,13 +69,19 @@ export default function CactusOSChat({ variant = 'panel', onClose }: ChatProps) 
     <div className={variant === 'panel' ? 'flex flex-col h-full' : 'flex flex-col h-full'}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center text-base flex-shrink-0"
-               style={{ background: 'rgba(74,222,128,.15)', border: '1px solid rgba(74,222,128,.3)', color: '#4ade80' }}>
-            ✦
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 p-1"
+               style={{ background: 'rgba(74,222,128,.15)', border: '1px solid rgba(74,222,128,.3)' }}>
+            <Image
+              src="/cactus-os-logo.png"
+              alt="CactusOS"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
           </div>
           <div className="min-w-0">
-            <div className="font-display text-sm font-bold text-white tracking-wide">CactusOS</div>
+            <div className="font-display text-base font-bold text-white tracking-wide">CactusOS</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1 h-1 rounded-full bg-[#4ade80] animate-pulse-dot" />
               <span className="font-mono text-[9px] text-[#6fa876] tracking-wider">Gemini Flash · Connecté</span>
