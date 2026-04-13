@@ -34,6 +34,9 @@ function normalizePatch(body: Record<string, unknown>, actor: string) {
     'public_login_message',
     'public_home_message',
     'control_note',
+    'name',
+    'url',
+    'webhook_url',
   ]
 
   for (const field of textFields) {
@@ -41,6 +44,11 @@ function normalizePatch(body: Record<string, unknown>, actor: string) {
       const value = body[field]
       updates[field] = typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
     }
+  }
+
+  // webhook_secret : ne pas effacer si absent ou vide
+  if ('webhook_secret' in body && typeof body.webhook_secret === 'string' && body.webhook_secret.trim().length > 0) {
+    updates.webhook_secret = body.webhook_secret.trim()
   }
 
   const boolFields = ['login_notice_enabled', 'home_notice_enabled', 'reboot_required']
@@ -144,6 +152,14 @@ export async function PATCH(req: NextRequest) {
   const supabase = createServiceClient()
   const updates = normalizePatch(body, session.user.name)
 
+  // Regeneration de l'ingest_key : SUPERADMIN uniquement
+  if (body.regenerate_ingest_key === true) {
+    if (session.user.role !== 'SUPERADMIN') {
+      return NextResponse.json({ error: 'Régénération réservée aux SUPERADMIN.' }, { status: 403 })
+    }
+    updates.ingest_key = randomUUID()
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Aucune donnée à mettre à jour.' }, { status: 400 })
   }
@@ -171,5 +187,36 @@ export async function PATCH(req: NextRequest) {
     await log('ok', `App "${label}" — redémarrage confirmé`, session.user.name)
   }
 
+  if ('ingest_key' in updates) {
+    await log('warn', `App "${label}" — ingest_key régénérée`, session.user.name)
+  }
+
+  if ('webhook_url' in updates || 'webhook_secret' in updates || 'name' in updates || 'url' in updates) {
+    await log('info', `App "${label}" — configuration mise à jour`, session.user.name)
+  }
+
   return NextResponse.json(data)
+}
+
+// ── DELETE : supprimer une application (SUPERADMIN uniquement) ──
+export async function DELETE(req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
+  if (session.user.role !== 'SUPERADMIN') {
+    return NextResponse.json({ error: 'Permissions insuffisantes.' }, { status: 403 })
+  }
+
+  const url = new URL(req.url)
+  const id = url.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'ID requis.' }, { status: 400 })
+
+  const supabase = createServiceClient()
+  const { data: existing } = await supabase.from('apps').select('name, app_key').eq('id', id).maybeSingle()
+  if (!existing) return NextResponse.json({ error: 'Application introuvable.' }, { status: 404 })
+
+  const { error } = await supabase.from('apps').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await log('warn', `App supprimée : "${existing.name}" (${existing.app_key})`, session.user.name)
+  return NextResponse.json({ ok: true })
 }

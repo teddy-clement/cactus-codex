@@ -1,56 +1,23 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useMobileNav, useNotifications } from '@/components/dashboard/DashboardShell'
-import AppSelector from '@/components/dashboard/AppSelector'
+import { useNotifications } from '@/components/dashboard/DashboardShell'
 import type { CCUser } from '@/types'
 
-type NavItem = {
-  label: string
-  icon: string
-  href: string
-  badge?: string
-  badgeColor?: string
-}
+type NavItem = { label: string; icon: string; href: string }
 
-const NAV: { group: string; items: NavItem[] }[] = [
-  { group: 'Vue générale', items: [{ label: 'Tableau de bord', icon: '◈', href: '/dashboard' }] },
-  {
-    group: 'Applications',
-    items: [
-      { label: 'Gestion des apps', icon: '⬡', href: '/dashboard/apps', badge: 'CTRL' },
-      { label: 'Maintenance', icon: '⚙', href: '/dashboard/maintenance', badge: 'LIVE', badgeColor: 'amber' },
-    ],
-  },
-  {
-    group: 'Monitoring',
-    items: [
-      { label: 'Signaux structurels', icon: '◉', href: '/dashboard/signals', badge: 'LIVE', badgeColor: 'amber' },
-      { label: 'Broadcasts', icon: '📢', href: '/dashboard/broadcasts' },
-    ],
-  },
-  {
-    group: 'Pilotage',
-    items: [
-      { label: 'Analytiques', icon: '▲', href: '/dashboard/analytics' },
-      { label: 'Chantiers', icon: '◧', href: '/dashboard/chantiers' },
-      { label: 'Roadmap', icon: '◫', href: '/dashboard/roadmap' },
-    ],
-  },
-  {
-    group: 'Administration',
-    items: [
-      { label: 'Remontées', icon: '◈', href: '/dashboard/feedbacks' },
-      { label: 'Utilisateurs', icon: '◉', href: '/dashboard/users' },
-      { label: 'Journaux', icon: '≡', href: '/dashboard/logs' },
-    ],
-  },
+const NAV: NavItem[] = [
+  { label: 'Accueil',    icon: '◈', href: '/dashboard' },
+  { label: 'Apps',       icon: '⬡', href: '/dashboard/apps' },
+  { label: 'Broadcasts', icon: '📢', href: '/dashboard/broadcasts' },
+  { label: 'Signaux',    icon: '◉', href: '/dashboard/analytics' },
+  { label: 'Logs',       icon: '≡', href: '/dashboard/logs' },
+  { label: 'Réglages',   icon: '⚙', href: '/dashboard/settings' },
 ]
 
 export default function Sidebar({ user }: { user: CCUser }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { open, setOpen } = useMobileNav()
   const { newFeedbacks } = useNotifications()
 
   async function handleLogout() {
@@ -58,77 +25,77 @@ export default function Sidebar({ user }: { user: CCUser }) {
     router.push('/login')
   }
 
-  const initials = user.name.split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2)
-
-  const content = (
-    <>
-      <div className="sidebar-brand-panel">
-        <div className="sidebar-brand-mark">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logoseulblanc-cactuscodex.png" alt="Cactus Codex" width={42} height={42} style={{ objectFit: "contain" }} />
-        </div>
-        <div className="sidebar-brand-copy">
-          <div className="sidebar-brand-title">CACTUS CODEX</div>
-          <div className="sidebar-brand-sub">Operational Control Center</div>
-        </div>
-      </div>
-
-      {/* Selecteur d'app : visible uniquement sur mobile (desktop → Topbar) */}
-      <div className="sm:hidden px-4 py-3 border-b border-[rgba(38,60,43,.9)]">
-        <AppSelector className="w-full" />
-      </div>
-
-      <nav className="sidebar-nav">
-        {NAV.map((group) => (
-          <div key={group.group} className="nav-group">
-            <div className="nav-group-label">{group.group}</div>
-            {group.items.map((item) => {
-              const active = item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href)
-              const showFeedbackBadge = item.href === '/dashboard/feedbacks' && newFeedbacks > 0
-              return (
-                <button key={item.href} type="button" className={`nav-item ${active ? 'active' : ''}`} onClick={() => router.push(item.href)}>
-                  <span className="nav-icon">{item.icon}</span>
-                  <span>{item.label}</span>
-                  {showFeedbackBadge ? (
-                    <span className="nav-badge red">{newFeedbacks > 9 ? '9+' : newFeedbacks}</span>
-                  ) : item.badge ? (
-                    <span className={`nav-badge ${item.badgeColor || 'green'}`}>{item.badge}</span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-      </nav>
-
-      <div className="sidebar-user-panel">
-        <div className="s-avatar">{initials}</div>
-        <div className="s-info">
-          <div className="s-uname">{user.name}</div>
-          <div className="s-urole">{user.role}</div>
-        </div>
-        <button className="logout-btn" onClick={handleLogout} title="Déconnexion">⏻</button>
-      </div>
-    </>
-  )
+  const initials = user.name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <>
-      {/* ── Desktop : sidebar fixe ≥ 640px ── */}
-      <aside className="sidebar hidden sm:flex">{content}</aside>
+    <aside
+      className="hidden md:flex fixed top-0 left-0 bottom-0 z-40 group flex-col
+                 w-16 hover:w-[220px] transition-[width] duration-200
+                 bg-[#060b07]/95 backdrop-blur-xl border-r border-white/5
+                 overflow-hidden"
+    >
+      {/* ── Logo ── */}
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/5 flex-shrink-0">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+             style={{ background: 'radial-gradient(circle at 30% 20%, rgba(74,222,128,.2), transparent 60%), #0c1610', border: '1px solid rgba(74,222,128,.2)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logoseulblanc-cactuscodex.png" alt="Codex" width={22} height={22} className="object-contain" />
+        </div>
+        <div className="font-mono text-xs text-white tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+          CODEX
+        </div>
+      </div>
 
-      {/* ── Mobile : overlay + drawer < 640px ── */}
-      <div
-        className={`fixed inset-0 z-[90] bg-black/70 transition-opacity duration-200 sm:hidden ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setOpen(false)}
-        aria-hidden="true"
-      />
-      <aside
-        className={`sidebar sm:hidden fixed top-0 left-0 bottom-0 w-[280px] z-[100] transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'}`}
-        aria-hidden={!open}
-      >
-        {content}
-      </aside>
-    </>
+      {/* ── Navigation ── */}
+      <nav className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden">
+        {NAV.map(item => {
+          const active = item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href)
+          const showBadge = item.href === '/dashboard/feedbacks' && newFeedbacks > 0
+          return (
+            <button
+              key={item.href}
+              type="button"
+              onClick={() => router.push(item.href)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all relative
+                ${active
+                  ? 'bg-[#1a4a2e] text-[#4ade80]'
+                  : 'text-[#6fa876] hover:bg-white/5 hover:text-white'}`}
+            >
+              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#4ade80] rounded-r" />}
+              <span className="w-5 text-center text-base flex-shrink-0">{item.icon}</span>
+              <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                {item.label}
+              </span>
+              {showBadge && (
+                <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {newFeedbacks > 9 ? '9+' : newFeedbacks}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* ── User panel ── */}
+      <div className="px-2 py-3 border-t border-white/5 flex-shrink-0">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold font-display"
+               style={{ background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.2)', color: '#c8f3d4' }}>
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="text-xs font-semibold text-white truncate">{user.name}</div>
+            <div className="font-mono text-[9px] text-[#6fa876] tracking-wider">{user.role}</div>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Déconnexion"
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-7 h-7 rounded-md border border-white/10 bg-white/5 text-[#7ebd92] hover:text-white hover:bg-white/10 flex items-center justify-center"
+          >
+            ⏻
+          </button>
+        </div>
+      </div>
+    </aside>
   )
 }

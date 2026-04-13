@@ -1,155 +1,219 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/server'
-import type { App, AppModule, AppSignal, RoadmapItem } from '@/types'
+import AppCard from '@/components/dashboard/AppCard'
+import ActivitySparkline from '@/components/dashboard/ActivitySparkline'
+import type { App, AppSignal, UserFeedback } from '@/types'
 
-async function getData() {
+const NIV_COLOR: Record<string, string> = {
+  important: '#ef4444',
+  moyen: '#f59e0b',
+  faible: '#4ade80',
+}
+
+type BroadcastRow = {
+  id: string
+  titre: string
+  message: string
+  niveau: 'faible' | 'moyen' | 'important'
+  created_at: string
+  created_by: string
+  delivered: boolean
+}
+
+async function getCockpitData() {
   const supabase = createServiceClient()
-  const [{ data: apps }, { data: modules }, { data: signals }, { data: roadmap }] = await Promise.all([
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [
+    { data: apps },
+    { data: signals24h },
+    { data: feedbacks },
+    { data: broadcasts },
+    { data: allSignals },
+  ] = await Promise.all([
     supabase.from('apps').select('*').order('name'),
-    supabase.from('app_modules').select('*').order('path_prefix'),
-    supabase.from('app_signals').select('*').order('created_at', { ascending: false }).limit(20),
-    supabase.from('roadmap_items').select('*').order('created_at'),
+    supabase.from('app_signals').select('app_id, severity, signal_type, created_at').gte('created_at', since24h),
+    supabase.from('user_feedbacks').select('app_key, status').eq('status', 'nouveau'),
+    supabase.from('codex_broadcasts').select('id, titre, message, niveau, created_at, created_by, delivered').order('created_at', { ascending: false }).limit(3),
+    supabase.from('app_signals').select('created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
   ])
+
+  // Agregat par app
+  const signalsByApp = new Map<string, AppSignal[]>()
+  const heartbeatByApp = new Map<string, string>()
+  for (const s of (signals24h as AppSignal[]) || []) {
+    if (!signalsByApp.has(s.app_id)) signalsByApp.set(s.app_id, [])
+    signalsByApp.get(s.app_id)!.push(s)
+    if (s.signal_type === 'heartbeat') {
+      const current = heartbeatByApp.get(s.app_id)
+      if (!current || s.created_at > current) heartbeatByApp.set(s.app_id, s.created_at)
+    }
+  }
+
+  const feedbacksByApp = new Map<string, number>()
+  for (const f of (feedbacks as Pick<UserFeedback, 'app_key' | 'status'>[]) || []) {
+    feedbacksByApp.set(f.app_key, (feedbacksByApp.get(f.app_key) || 0) + 1)
+  }
+
+  // Sparkline 7j
+  const dayMap: Record<string, number> = {}
+  for (let i = 6; i >= 0; i--) {
+    const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)
+    dayMap[key] = 0
+  }
+  for (const s of (allSignals as { created_at: string }[]) || []) {
+    const key = s.created_at.slice(0, 10)
+    if (key in dayMap) dayMap[key]++
+  }
+
   return {
     apps: (apps as App[]) || [],
-    modules: (modules as AppModule[]) || [],
-    signals: (signals as AppSignal[]) || [],
-    roadmap: (roadmap as RoadmapItem[]) || [],
+    signalsByApp,
+    heartbeatByApp,
+    feedbacksByApp,
+    broadcasts: (broadcasts as BroadcastRow[]) || [],
+    sparkline: Object.entries(dayMap).map(([date, count]) => ({ date, count })),
   }
 }
 
-const statusClass: Record<string, string> = { online: 'pill-on', maintenance: 'pill-mt', offline: 'pill-of' }
-const statusLabel: Record<string, string> = { online: 'En ligne', maintenance: 'Maintenance', offline: 'Hors ligne' }
-const statusGlow: Record<string, string> = { online: '0 0 8px rgba(74,222,128,.5)', maintenance: '0 0 8px rgba(245,158,11,.5)', offline: '0 0 8px rgba(239,68,68,.5)' }
-const statusColor: Record<string, string> = { online: '#4ade80', maintenance: '#f59e0b', offline: '#ef4444' }
+function formatRelative(iso: string) {
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (diffMin < 1) return 'à l\'instant'
+  if (diffMin < 60) return `il y a ${diffMin}min`
+  const h = Math.floor(diffMin / 60)
+  if (h < 24) return `il y a ${h}h`
+  return `il y a ${Math.floor(h / 24)}j`
+}
 
 export default async function DashboardPage() {
-  const { apps, modules, signals, roadmap } = await getData()
-  const app = apps[0]
-  const appModules = app ? modules.filter((item) => item.app_id === app.id) : []
-  const activeRoadmap = roadmap.filter((item) => item.status !== 'done').slice(0, 6)
-  const latestSignals = signals.slice(0, 6)
-  const warnCount = signals.filter((s) => s.severity !== 'info').length
-  const modulesOnline = appModules.filter((m) => m.status === 'online').length
-  const modulesInMaintenance = appModules.filter((m) => m.status === 'maintenance').length
-  const appName = app?.name || 'Application'
-  const appKey = app?.app_key || 'app'
+  const { apps, signalsByApp, heartbeatByApp, feedbacksByApp, broadcasts, sparkline } = await getCockpitData()
+
+  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const activeApps = apps.filter(a => a.status === 'online').length
 
   return (
-    <div className="dash-shell">
-      <section className="hero-shell">
-        <div className="hero-card hero-card-main">
-          <div className="hero-kicker">// centre de commandement</div>
-          <h1 className="hero-title">Un seul cockpit pour piloter vos applications.</h1>
-          <p className="hero-copy">
-            Maintenance globale, maintenance par module, messages publics, signaux structurels.
-            Tout est visible, tout est pilotable.
-          </p>
-          <div className="hero-actions">
-            <Link href="/dashboard/apps" className="hero-btn hero-btn-primary">Controler {appName}</Link>
-            <Link href="/dashboard/analytics" className="hero-btn">Voir les signaux</Link>
-          </div>
-          <div className="hero-gridline" />
-        </div>
-        <div className="hero-card hero-card-side">
-          <div className="mini-head">
-            <div>
-              <div className="mini-label">Application pilotee</div>
-              <div className="mini-title">{appName}</div>
-            </div>
-            {app && (
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-2.5 h-2.5 rounded-full animate-pulse-dot" style={{ background: statusColor[app.status], boxShadow: statusGlow[app.status] }} />
-                <span className={`pill ${statusClass[app.status]}`}><span className="pill-dot" />{statusLabel[app.status]}</span>
-              </div>
-            )}
-          </div>
-          <div className="focus-meta">
-            <div><span className="focus-key">Modules</span><code>{appModules.length}</code></div>
-            <div><span className="focus-key">Endpoint</span><code>/api/public/apps/{appKey}</code></div>
-          </div>
-          <div className="focus-strip">
-            <div className="focus-stat"><div className="focus-value" style={{ color: '#4ade80' }}>{modulesOnline}</div><div className="focus-label">modules en ligne</div></div>
-            <div className="focus-stat"><div className="focus-value" style={{ color: modulesInMaintenance > 0 ? '#f59e0b' : '#4ade80' }}>{modulesInMaintenance}</div><div className="focus-label">en maintenance</div></div>
-            <div className="focus-stat"><div className="focus-value" style={{ color: warnCount > 0 ? '#ef4444' : '#4ade80' }}>{warnCount}</div><div className="focus-label">alertes</div></div>
-          </div>
-        </div>
-      </section>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* ── Header ── */}
+      <header className="animate-slideUp">
+        <h1 className="font-display text-3xl md:text-4xl font-bold text-white tracking-wide">
+          Cockpit
+        </h1>
+        <p className="font-mono text-xs text-[#6fa876] mt-1 tracking-wider">
+          {today.charAt(0).toUpperCase() + today.slice(1)} · {activeApps} application{activeApps !== 1 ? 's' : ''} active{activeApps !== 1 ? 's' : ''}
+        </p>
+      </header>
 
-      {/* ── Health Grid — vue "control room" des modules ── */}
-      <section className="panel mb">
-        <div className="ph">
-          <div className="pht">Sante des modules</div>
-          <div className="phg">// {modulesOnline}/{appModules.length} operationnels</div>
+      {/* ── Grille AppCards ── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">
+            // Applications
+          </h2>
+          <Link
+            href="/dashboard/apps/new"
+            className="font-mono text-[10px] text-[#4ade80] tracking-wider uppercase hover:text-white transition-colors"
+          >
+            + Nouvelle app
+          </Link>
         </div>
-        <div className="p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {appModules.map((module) => (
-              <div
-                key={module.id}
-                className="relative rounded-lg border p-3 transition-all duration-200 hover:scale-[1.02]"
-                style={{
-                  borderColor: statusColor[module.status] + '33',
-                  background: statusColor[module.status] + '08',
-                }}
+        {apps.length === 0 ? (
+          <div className="glass p-8 text-center font-mono text-sm text-[#6fa876]">
+            Aucune application enregistrée.
+            <div className="mt-3">
+              <Link
+                href="/dashboard/apps/new"
+                className="inline-block px-4 py-2 rounded-lg bg-[#4ade80]/10 border border-[#4ade80]/30 text-[#4ade80] hover:bg-[#4ade80]/20 transition-colors font-mono text-xs uppercase tracking-wider"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-display text-xs font-bold text-white tracking-wide">{module.name}</span>
-                  <span className="inline-block w-2 h-2 rounded-full animate-pulse-dot" style={{ background: statusColor[module.status], boxShadow: statusGlow[module.status] }} />
-                </div>
-                <div className="font-mono text-[8px] text-[#384e3c] tracking-widest uppercase">{module.module_key}</div>
-                <div className="font-mono text-[9px] mt-1" style={{ color: statusColor[module.status] }}>
-                  {statusLabel[module.status]}
-                </div>
-                {module.reboot_required && (
-                  <div className="font-mono text-[8px] text-[#f59e0b] mt-1 animate-pulse">REBOOT REQUIS</div>
-                )}
-              </div>
-            ))}
+                Créer la première
+              </Link>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {apps.map((app, i) => {
+              const appSignals = signalsByApp.get(app.id) || []
+              const errors = appSignals.filter(s => s.severity === 'error').length
+              const warnings = appSignals.filter(s => s.severity === 'warn').length
+              const unread = app.app_key ? feedbacksByApp.get(app.app_key) || 0 : 0
+              const hb = heartbeatByApp.get(app.id) || null
+              return (
+                <AppCard
+                  key={app.id}
+                  app={app}
+                  signals24h={appSignals.length}
+                  feedbacksUnread={unread}
+                  lastHeartbeat={hb}
+                  errors24h={errors}
+                  warnings24h={warnings}
+                  index={i}
+                />
+              )
+            })}
+          </div>
+        )}
       </section>
 
-      {/* ── Metriques ── */}
-      <section className="metrics-grid">
-        <div className="metric-card"><div className="metric-icon">⬡</div><div className="metric-value">{apps.length}</div><div className="metric-label">{apps.length > 1 ? 'Applications suivies' : 'Application suivie'}</div><div className="metric-sub">pilotees depuis Codex</div></div>
-        <div className="metric-card"><div className="metric-icon">⚙</div><div className="metric-value">{modulesInMaintenance}</div><div className="metric-label">Modules coupes</div><div className="metric-sub">pilotables individuellement</div></div>
-        <div className="metric-card"><div className="metric-icon">✦</div><div className="metric-value">{latestSignals.length}</div><div className="metric-label">Signaux recents</div><div className="metric-sub">connexions, alertes</div></div>
-        <div className="metric-card"><div className="metric-icon">▲</div><div className="metric-value">{app?.uptime?.toFixed?.(1) ?? app?.uptime ?? '—'}%</div><div className="metric-label">Uptime {appName}</div><div className="metric-sub">fenetre monitoree</div></div>
-      </section>
-
-      <section className="content-grid">
-        {/* ── Telemetrie ── */}
-        <div className="panel">
-          <div className="ph"><div className="pht">Telemetrie</div><div className="phg">// derniers signaux</div></div>
-          <div className="panel-body signal-list">
-            {latestSignals.length === 0 ? <div className="empty-soft">Aucun signal remonte.</div> : latestSignals.map((signal) => (
-              <div key={signal.id} className="signal-item">
-                <div className="signal-head">
-                  <div className="signal-app">{signal.title}</div>
-                  <span className={`pill ${signal.severity === 'error' ? 'pill-of' : signal.severity === 'warn' ? 'pill-mt' : 'pill-on'}`}>{signal.severity}</span>
-                </div>
-                <p>{signal.body || signal.signal_type}</p>
-              </div>
-            ))}
+      {/* ── Broadcasts récents + Sparkline activité ── */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="glass p-5 md:p-6 animate-slideUp" style={{ animationDelay: '200ms' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">
+              // Broadcasts récents
+            </h2>
+            <Link
+              href="/dashboard/broadcasts"
+              className="font-mono text-[10px] text-[#6fa876] tracking-wider uppercase hover:text-white transition-colors"
+            >
+              Voir tout →
+            </Link>
           </div>
+          {broadcasts.length === 0 ? (
+            <div className="font-mono text-xs text-[#6fa876] py-6 text-center">Aucun broadcast récent.</div>
+          ) : (
+            <div className="space-y-2">
+              {broadcasts.map(b => (
+                <div
+                  key={b.id}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
+                  style={{ borderLeftColor: NIV_COLOR[b.niveau], borderLeftWidth: 3 }}
+                >
+                  <span
+                    className="font-mono text-[9px] font-bold tracking-wider uppercase flex-shrink-0 mt-0.5"
+                    style={{ color: NIV_COLOR[b.niveau] }}
+                  >
+                    {b.niveau}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-white truncate">{b.titre}</div>
+                    <div className="font-mono text-[10px] text-[#6fa876] mt-0.5 truncate">{b.message}</div>
+                  </div>
+                  <time className="font-mono text-[9px] text-[#6fa876] flex-shrink-0 mt-0.5">
+                    {formatRelative(b.created_at)}
+                  </time>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* ── Backlog ── */}
-        <div className="panel">
-          <div className="ph"><div className="pht">Backlog a suivre</div><div className="phg">// reste a faire</div></div>
-          <div className="panel-body">
-            {activeRoadmap.map((item) => (
-              <div key={item.id} className="backlog-row">
-                <div className={`rm-dot ${item.status === 'active' ? 'dot-active' : 'dot-todo'}`} />
-                <div className="backlog-body">
-                  <div className="backlog-title">{item.title}</div>
-                  <div className="backlog-meta">{item.description}</div>
-                  <div className="prog"><div className="pf" style={{ width: `${item.progress}%`, background: item.status === 'active' ? 'var(--amber)' : 'var(--border3)' }} /></div>
-                </div>
-                <div className="backlog-pct">{item.progress}%</div>
-              </div>
-            ))}
+        <div className="glass p-5 md:p-6 animate-slideUp" style={{ animationDelay: '300ms' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">
+              // Activité 7 jours
+            </h2>
+            <Link
+              href="/dashboard/analytics"
+              className="font-mono text-[10px] text-[#6fa876] tracking-wider uppercase hover:text-white transition-colors"
+            >
+              Analytiques →
+            </Link>
+          </div>
+          <ActivitySparkline data={sparkline} />
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5">
+            <span className="font-mono text-[10px] text-[#6fa876] tracking-wider uppercase">Total</span>
+            <span className="font-display text-xl font-bold text-white">
+              {sparkline.reduce((sum, d) => sum + d.count, 0)}
+            </span>
           </div>
         </div>
       </section>

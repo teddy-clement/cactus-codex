@@ -8,7 +8,9 @@
       "Bash(npm install:*)",
       "Bash(grep -E \"POST|PATCH|DELETE\" c:/Users/ted74/Cactus-Codex/cactus-codex.com/src/app/api/*/route.ts)",
       "Bash(npm run:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(rm -rf src/app/dashboard/signals src/app/dashboard/feedbacks src/components/dashboard/AppSelector.tsx)",
+      "Bash(mkdir -p src/app/dashboard/settings src/app/dashboard/apps/[key])"
     ]
   }
 }

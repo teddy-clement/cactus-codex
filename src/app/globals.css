@@ -70,6 +70,43 @@ body::after {
 .animate-fadeup { animation: fadeUp .26s ease both; }
 .animate-pulse-dot { animation: pulse 2s infinite; }
 
+/* ── Premium animations (refonte cockpit) ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-slideUp { animation: slideUp .4s cubic-bezier(.22,.68,0,1.2) forwards; opacity: 0; }
+.animate-fadeIn  { animation: fadeIn .3s ease forwards; opacity: 0; }
+
+/* ── Glassmorphism premium ── */
+.glass {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+}
+.glass-hover { transition: all .2s ease; }
+.glass-hover:hover {
+  border-color: rgba(74,222,128,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(74,222,128,0.08);
+}
+
+/* Safe area mobile + espace pour BottomNav (80px) — desktop padding normal */
+.main-safe-bottom {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .main-safe-bottom { padding-bottom: 24px; }
+}
+
 /* Server dashboard pages moved from styled-jsx for Next.js production build */
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:17px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:17px}
