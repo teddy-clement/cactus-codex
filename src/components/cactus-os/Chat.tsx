@@ -10,7 +10,7 @@ interface ChatProps {
   onClose?: () => void
 }
 
-const WELCOME = "Bonjour. Tous les systèmes sont opérationnels. Comment puis-je vous assister, Monsieur Clement ?"
+const WELCOME = "Salut. Tout tourne. CoTrain est en ligne, aucune alerte. Je suis là si t'as besoin — ou juste pour papoter. 🌵"
 
 export default function CactusOSChat({ variant = 'panel', onClose }: ChatProps) {
   const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', content: WELCOME }])
