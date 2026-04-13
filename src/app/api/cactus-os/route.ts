@@ -3,8 +3,8 @@ import { getSession } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { CactusOSMessageSchema } from '@/lib/schemas'
 
-const GEMINI_MODEL = 'gemini-1.5-flash'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+const MISTRAL_MODEL = 'mistral-small-latest'
+const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions'
 
 const SYSTEM_PROMPT = `Tu es CactusOS, l'assistant IA de Teddy Clement pour son cockpit CactusCodex.
 Tu gères ses applications web (CoTrain, et futures apps Cactus Codex). Tu parles comme JARVIS dans Iron Man : sobre, précis, légèrement formel mais pas rigide, avec une touche d'humour discret. Tu utilises 'Monsieur Clement' à l'occasion mais pas systématiquement. Tu as accès en temps réel aux données de toutes les apps : signaux, feedbacks, déploiements, roadmap. Tu peux suggérer des améliorations basées sur les remontées terrain. Tu réponds en français.
@@ -44,18 +44,19 @@ async function buildContext(): Promise<ContextSnapshot> {
   }
 }
 
-type GeminiResponse = {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-  error?: { message?: string }
+type MistralMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+type MistralResponse = {
+  choices?: Array<{ message?: { content?: string } }>
+  error?: { message?: string } | string
 }
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
 
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = process.env.MISTRAL_API_KEY
   if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY non configurée.' }, { status: 503 })
+    return NextResponse.json({ error: 'MISTRAL_API_KEY non configurée.' }, { status: 503 })
   }
 
   let raw: unknown
@@ -69,49 +70,42 @@ export async function POST(req: NextRequest) {
 
   const { message, history } = parsed.data
   const context = await buildContext()
-
-  // Construction du prompt complet
   const contextBlock = `\n[CONTEXTE TEMPS RÉEL — JSON]\n${JSON.stringify(context, null, 2)}\n[FIN CONTEXTE]\n`
 
-  // Format Gemini : array de contents, chaque content a un role + parts
-  const contents = [
-    // System instruction (Gemini 2.x : passé via systemInstruction)
-    ...history.map(h => ({
-      role: h.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: h.content }],
-    })),
-    {
-      role: 'user',
-      parts: [{ text: message + contextBlock }],
-    },
+  // Format OpenAI-compatible : system + history + dernier user (avec contexte injecté)
+  const messages: MistralMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history.map(h => ({ role: h.role, content: h.content })),
+    { role: 'user', content: message + contextBlock },
   ]
 
-  let geminiData: GeminiResponse
+  let mistralData: MistralResponse
   try {
-    const res = await fetch(GEMINI_URL, {
+    const res = await fetch(MISTRAL_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        },
+        model: MISTRAL_MODEL,
+        messages,
+        max_tokens: 1024,
+        temperature: 0.7,
       }),
     })
-    geminiData = await res.json() as GeminiResponse
+    mistralData = await res.json() as MistralResponse
     if (!res.ok) {
-      return NextResponse.json({ error: geminiData.error?.message || `Gemini ${res.status}` }, { status: 502 })
+      const errMsg = typeof mistralData.error === 'string'
+        ? mistralData.error
+        : mistralData.error?.message || `Mistral ${res.status}`
+      return NextResponse.json({ error: errMsg }, { status: 502 })
     }
   } catch (e) {
-    return NextResponse.json({ error: `Gemini injoignable : ${String(e)}` }, { status: 503 })
+    return NextResponse.json({ error: `Mistral injoignable : ${String(e)}` }, { status: 503 })
   }
 
-  const reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '…'
+  const reply = mistralData.choices?.[0]?.message?.content || '…'
 
   return NextResponse.json({ reply })
 }

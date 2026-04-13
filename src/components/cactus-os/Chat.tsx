@@ -84,7 +84,7 @@ export default function CactusOSChat({ variant = 'panel', onClose }: ChatProps) 
             <div className="font-display text-base font-bold text-white tracking-wide">CactusOS</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1 h-1 rounded-full bg-[#4ade80] animate-pulse-dot" />
-              <span className="font-mono text-[9px] text-[#6fa876] tracking-wider">Gemini Flash · Connecté</span>
+              <span className="font-mono text-[9px] text-[#6fa876] tracking-wider">Mistral · Connecté</span>
             </div>
           </div>
         </div>
