@@ -4,11 +4,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useNotifications } from '@/components/dashboard/DashboardShell'
 
 const NAV = [
-  { label: 'Accueil',    icon: '◈', href: '/dashboard' },
-  { label: 'Apps',       icon: '⬡', href: '/dashboard/apps' },
-  { label: 'Diffusion',  icon: '📢', href: '/dashboard/broadcasts' },
-  { label: 'Signaux',    icon: '◉', href: '/dashboard/analytics' },
-  { label: 'Réglages',   icon: '⚙', href: '/dashboard/settings' },
+  { label: 'Accueil',   icon: '◈', href: '/dashboard' },
+  { label: 'Apps',      icon: '⬡', href: '/dashboard/apps' },
+  { label: 'CactusOS',  icon: '✦', href: '/dashboard/cactus-os' },
+  { label: 'Diffusion', icon: '📢', href: '/dashboard/broadcasts' },
+  { label: 'Signaux',   icon: '◉', href: '/dashboard/analytics' },
 ]
 
 export default function BottomNav() {

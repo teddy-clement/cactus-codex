@@ -1,18 +1,29 @@
 'use client'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
 import { createClient } from '@/lib/supabase/client'
 import ActivitySparkline from '@/components/dashboard/ActivitySparkline'
-import type { App, AppSignal, UserFeedback } from '@/types'
+import type { App, AppSignal, UserFeedback, AppDeployment, AppImprovement } from '@/types'
 
-type Tab = 'overview' | 'signals' | 'feedbacks' | 'settings'
+type Tab = 'overview' | 'signals' | 'feedbacks' | 'roadmap' | 'settings'
 
 const SEV_COLOR: Record<string, string> = { error: '#ef4444', warn: '#f59e0b', info: '#4ade80', critical: '#ef4444' }
 const STATUS_LABEL: Record<string, string> = { online: 'Opérationnel', maintenance: 'Maintenance', offline: 'Erreur' }
 const STATUS_COLOR: Record<string, string> = { online: '#4ade80', maintenance: '#f59e0b', offline: '#ef4444' }
 const FB_STATUS_LABEL: Record<string, string> = { nouveau: 'Nouveau', en_cours: 'En cours', 'résolu': 'Résolu', 'ignoré': 'Ignoré' }
+const DEP_COLOR: Record<string, string> = { READY: '#4ade80', ERROR: '#ef4444', BUILDING: '#f59e0b', QUEUED: '#6fa876', CANCELED: '#6fa876' }
+
+function formatRel(iso: string | null) {
+  if (!iso) return '—'
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (diff < 60) return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}min`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}j`
+}
 
 export default function AppPage() {
   const params = useParams<{ key: string }>()
@@ -30,12 +41,11 @@ export default function AppPage() {
 
   function changeTab(newTab: Tab) {
     setTab(newTab)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', newTab)
-    router.replace(`/dashboard/apps/${appKey}?${params.toString()}`, { scroll: false })
+    const p = new URLSearchParams(searchParams.toString())
+    p.set('tab', newTab)
+    router.replace(`/dashboard/apps/${appKey}?${p.toString()}`, { scroll: false })
   }
 
-  // Charge toutes les donnees
   useEffect(() => {
     async function load() {
       try {
@@ -49,12 +59,10 @@ export default function AppPage() {
         }
         setApp(current)
 
-        // Signaux de cette app
         const sigRes = await fetch('/api/signals?limit=100').then(r => r.json())
         const allSigs = (Array.isArray(sigRes) ? sigRes : sigRes.data || []) as AppSignal[]
         setSignals(allSigs.filter(s => s.app_id === current.id))
 
-        // Feedbacks de cette app
         const fbRes = await fetch(`/api/feedbacks?limit=50`).then(r => r.json())
         const allFbs = (Array.isArray(fbRes) ? fbRes : fbRes.data || []) as UserFeedback[]
         setFeedbacks(allFbs.filter(f => f.app_key === appKey))
@@ -67,7 +75,7 @@ export default function AppPage() {
     load()
   }, [appKey, router, showToast])
 
-  // Realtime subscriptions (scope app)
+  // Realtime
   useEffect(() => {
     if (!app) return
     const supabase = createClient()
@@ -83,7 +91,6 @@ export default function AppPage() {
     return () => { supabase.removeChannel(channel) }
   }, [app, appKey])
 
-  // ── Actions ──
   const toggleMaintenance = useCallback(async () => {
     if (!app) return
     const newStatus = app.status === 'maintenance' ? 'online' : 'maintenance'
@@ -114,7 +121,6 @@ export default function AppPage() {
     }
   }
 
-  // ── KPIs calcules ──
   const kpi = useMemo(() => {
     const since24h = Date.now() - 24 * 60 * 60 * 1000
     const recent = signals.filter(s => new Date(s.created_at).getTime() > since24h)
@@ -151,6 +157,20 @@ export default function AppPage() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
+            {app.logo_url ? (
+              <Image
+                src={app.logo_url}
+                alt={app.name}
+                width={48}
+                height={48}
+                className="rounded-xl flex-shrink-0 border border-white/10 object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-display font-bold text-[#4ade80]"
+                   style={{ background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.25)' }}>
+                ⬡
+              </div>
+            )}
             <h1 className="font-display text-2xl md:text-3xl font-bold text-white tracking-wide truncate">
               {app.name}
             </h1>
@@ -179,8 +199,8 @@ export default function AppPage() {
 
       {/* ── Onglets ── */}
       <div className="flex items-center gap-1 overflow-x-auto border-b border-white/10 -mx-4 px-4 md:mx-0 md:px-0">
-        {(['overview', 'signals', 'feedbacks', 'settings'] as Tab[]).map(t => {
-          const labels: Record<Tab, string> = { overview: 'Aperçu', signals: 'Signaux', feedbacks: 'Feedbacks', settings: 'Réglages' }
+        {(['overview', 'signals', 'feedbacks', 'roadmap', 'settings'] as Tab[]).map(t => {
+          const labels: Record<Tab, string> = { overview: 'Aperçu', signals: 'Signaux', feedbacks: 'Feedbacks', roadmap: 'Roadmap', settings: 'Réglages' }
           const active = tab === t
           return (
             <button
@@ -196,33 +216,58 @@ export default function AppPage() {
         })}
       </div>
 
-      {/* ── Contenu tab ── */}
-      {tab === 'overview' && <OverviewTab app={app} kpi={kpi} signals={signals} />}
+      {tab === 'overview' && <OverviewTab app={app} kpi={kpi} signals={signals} appKey={appKey} />}
       {tab === 'signals' && <SignalsTab signals={signals} />}
       {tab === 'feedbacks' && <FeedbacksTab feedbacks={feedbacks} updateStatus={updateFeedbackStatus} />}
+      {tab === 'roadmap' && <RoadmapTab appKey={appKey} />}
       {tab === 'settings' && <SettingsTab app={app} onUpdate={setApp} />}
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────
-// Onglet Aperçu
+// Onglet Aperçu (avec déploiements)
 // ─────────────────────────────────────────────────────
-function OverviewTab({ app, kpi, signals }: {
+function OverviewTab({ app, kpi, signals, appKey }: {
   app: App
   kpi: { signals24h: number; errors24h: number; warnings24h: number; feedbacksUnread: number; lastHeartbeat: string | null }
   signals: AppSignal[]
+  appKey: string
 }) {
-  function formatRel(iso: string | null) {
-    if (!iso) return '—'
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-    if (diff < 60) return `${diff}s`
-    if (diff < 3600) return `${Math.floor(diff / 60)}min`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`
-    return `${Math.floor(diff / 86400)}j`
+  const { showToast } = useToast()
+  const [deployments, setDeployments] = useState<AppDeployment[]>([])
+  const [syncing, setSyncing] = useState(false)
+
+  const loadDeployments = useCallback(async (silent = false) => {
+    try {
+      const res = await fetch(`/api/vercel/deployments?app_key=${appKey}&limit=5`)
+      const json = await res.json()
+      setDeployments(json.data || [])
+    } catch {
+      if (!silent) showToast('Erreur chargement déploiements', 'er')
+    }
+  }, [appKey, showToast])
+
+  useEffect(() => { loadDeployments(true) }, [loadDeployments])
+
+  async function syncVercel() {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/vercel/sync')
+      const json = await res.json()
+      if (res.ok) {
+        setDeployments(json.deployments || [])
+        showToast(`✓ ${json.synced} déploiement(s) synchronisé(s)`, 'ok')
+      } else {
+        showToast(json.error || 'Erreur sync Vercel', 'er')
+      }
+    } catch {
+      showToast('Erreur réseau', 'er')
+    } finally {
+      setSyncing(false)
+    }
   }
 
-  // Sparkline 7j de cette app
   const sparklineData = useMemo(() => {
     const dayMap: Record<string, number> = {}
     for (let i = 6; i >= 0; i--) {
@@ -272,7 +317,60 @@ function OverviewTab({ app, kpi, signals }: {
         </div>
       </div>
 
-      {/* Infos app */}
+      {/* Déploiements Vercel */}
+      <div className="glass p-5 md:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">// Déploiements Vercel</div>
+          <button
+            onClick={syncVercel}
+            disabled={syncing}
+            className="px-3 py-1.5 rounded-md bg-[#4ade80]/10 border border-[#4ade80]/30 text-[#4ade80] font-mono text-[10px] tracking-wider uppercase hover:bg-[#4ade80]/20 disabled:opacity-50 transition-colors"
+          >
+            {syncing ? '…' : '↻ Sync Vercel'}
+          </button>
+        </div>
+        {deployments.length === 0 ? (
+          <div className="font-mono text-xs text-[#6fa876] py-4 text-center">
+            Aucun déploiement synchronisé. Cliquez sur Sync.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {deployments.map(d => {
+              const color = DEP_COLOR[d.status] || '#6fa876'
+              return (
+                <div key={d.id} className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                  <span
+                    className="font-mono text-[9px] font-bold tracking-wider uppercase flex-shrink-0 mt-0.5 w-14 text-center px-1.5 py-0.5 rounded"
+                    style={{ color, background: color + '15', border: `1px solid ${color}40` }}
+                  >
+                    {d.status}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-white truncate">
+                      {d.message || 'Déploiement'}
+                    </div>
+                    <div className="font-mono text-[10px] text-[#6fa876] mt-0.5 truncate">
+                      {d.version || '—'} · déployé il y a {formatRel(d.deployed_at)}
+                    </div>
+                  </div>
+                  {d.url && (
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[10px] text-[#6fa876] hover:text-[#4ade80] flex-shrink-0 mt-0.5"
+                    >
+                      ↗
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Endpoint */}
       <div className="glass p-5 md:p-6">
         <div className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase mb-3">// Endpoint public</div>
         <div className="flex items-center gap-2 p-3 rounded-lg bg-black/30 border border-white/5 font-mono text-xs text-[#4ade80] overflow-x-auto">
@@ -384,7 +482,230 @@ function FeedbacksTab({ feedbacks, updateStatus }: { feedbacks: UserFeedback[]; 
 }
 
 // ─────────────────────────────────────────────────────
-// Onglet Réglages
+// Onglet Roadmap (Kanban)
+// ─────────────────────────────────────────────────────
+const KANBAN_COLS: Array<{ key: AppImprovement['statut']; label: string; color: string }> = [
+  { key: 'idee', label: 'Idée', color: '#6fa876' },
+  { key: 'planifie', label: 'Planifié', color: '#3b82f6' },
+  { key: 'en_cours', label: 'En cours', color: '#f59e0b' },
+  { key: 'livre', label: 'Livré', color: '#4ade80' },
+]
+
+const SOURCE_LABEL: Record<AppImprovement['source'], { color: string; bg: string; label: string }> = {
+  manual: { color: '#94a3b8', bg: 'rgba(148,163,184,.15)', label: 'manuel' },
+  terrain: { color: '#f59e0b', bg: 'rgba(245,158,11,.15)', label: 'terrain' },
+  'cactus-os': { color: '#4ade80', bg: 'rgba(74,222,128,.15)', label: 'cactus-os' },
+}
+
+function RoadmapTab({ appKey }: { appKey: string }) {
+  const { showToast } = useToast()
+  const [items, setItems] = useState<AppImprovement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [draftTitre, setDraftTitre] = useState('')
+  const [draftDescription, setDraftDescription] = useState('')
+  const [draftPriorite, setDraftPriorite] = useState(3)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/improvements?app_key=${appKey}`)
+      const json = await res.json()
+      setItems(json.data || [])
+    } catch {
+      showToast('Erreur de chargement', 'er')
+    } finally {
+      setLoading(false)
+    }
+  }, [appKey, showToast])
+
+  useEffect(() => { load() }, [load])
+
+  async function createItem(e: React.FormEvent) {
+    e.preventDefault()
+    if (!draftTitre.trim()) return
+    const res = await fetch('/api/improvements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_key: appKey,
+        titre: draftTitre.trim(),
+        description: draftDescription.trim() || null,
+        priorite: draftPriorite,
+      }),
+    })
+    if (res.ok) {
+      const created = await res.json() as AppImprovement
+      setItems(prev => [created, ...prev])
+      setDraftTitre('')
+      setDraftDescription('')
+      setDraftPriorite(3)
+      setAdding(false)
+      showToast('Idée ajoutée', 'ok')
+    } else {
+      showToast('Erreur création', 'er')
+    }
+  }
+
+  async function moveItem(id: string, newStatut: AppImprovement['statut']) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, statut: newStatut } : i))
+    const res = await fetch('/api/improvements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, statut: newStatut }),
+    })
+    if (!res.ok) {
+      showToast('Erreur sauvegarde', 'er')
+      load()
+    }
+  }
+
+  async function deleteItem(id: string) {
+    if (!confirm('Supprimer cette idée ?')) return
+    setItems(prev => prev.filter(i => i.id !== id))
+    await fetch(`/api/improvements?id=${id}`, { method: 'DELETE' })
+  }
+
+  return (
+    <div className="space-y-4 animate-slideUp">
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">// Roadmap · {items.length} idée{items.length !== 1 ? 's' : ''}</div>
+        <button
+          onClick={() => setAdding(true)}
+          className="px-3 py-1.5 rounded-md bg-[#4ade80]/10 border border-[#4ade80]/30 text-[#4ade80] font-mono text-[10px] tracking-wider uppercase hover:bg-[#4ade80]/20"
+        >
+          + Idée
+        </button>
+      </div>
+
+      {/* Modal d'ajout */}
+      {adding && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" onClick={() => setAdding(false)}>
+          <form onSubmit={createItem} onClick={e => e.stopPropagation()} className="glass w-full max-w-md p-5 space-y-3">
+            <div className="font-display text-lg font-bold text-white">Nouvelle idée</div>
+            <input
+              autoFocus
+              value={draftTitre}
+              onChange={e => setDraftTitre(e.target.value)}
+              placeholder="Titre"
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:border-[#4ade80]/50 focus:outline-none"
+            />
+            <textarea
+              value={draftDescription}
+              onChange={e => setDraftDescription(e.target.value)}
+              placeholder="Description (optionnel)"
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:border-[#4ade80]/50 focus:outline-none resize-none"
+            />
+            <div>
+              <label className="font-mono text-[9px] text-[#6fa876] tracking-wider uppercase mb-1.5 block">Priorité</label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setDraftPriorite(n)}
+                    className={`flex-1 py-2 rounded-md font-mono text-xs transition-colors ${draftPriorite === n ? 'bg-[#4ade80]/20 border border-[#4ade80]/50 text-[#4ade80]' : 'bg-white/5 border border-white/10 text-[#6fa876]'}`}
+                  >
+                    {'★'.repeat(n)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="submit" className="flex-1 py-2.5 rounded-lg bg-[#4ade80] text-black font-display font-bold text-xs tracking-wider uppercase">
+                Ajouter
+              </button>
+              <button type="button" onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-lg border border-white/10 bg-white/5 text-[#6fa876] hover:text-white text-xs font-mono uppercase tracking-wider">
+                Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => <div key={i} className="glass p-4 h-32 animate-pulse" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {KANBAN_COLS.map(col => {
+            const colItems = items.filter(i => i.statut === col.key)
+            return (
+              <div
+                key={col.key}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault()
+                  if (draggedId) {
+                    moveItem(draggedId, col.key)
+                    setDraggedId(null)
+                  }
+                }}
+                className="glass p-3 min-h-[200px]"
+                style={{ borderTop: `2px solid ${col.color}` }}
+              >
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: col.color }}>
+                    {col.label}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#6fa876]">{colItems.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {colItems.map(item => {
+                    const src = SOURCE_LABEL[item.source]
+                    return (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => setDraggedId(item.id)}
+                        onDragEnd={() => setDraggedId(null)}
+                        className={`p-3 rounded-lg bg-white/5 border border-white/10 cursor-grab active:cursor-grabbing hover:border-[#4ade80]/30 transition-colors ${draggedId === item.id ? 'opacity-40' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="text-sm font-semibold text-white leading-tight">{item.titre}</div>
+                          <button
+                            onClick={() => deleteItem(item.id)}
+                            className="font-mono text-[10px] text-[#6fa876] hover:text-red-400 flex-shrink-0"
+                            title="Supprimer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        {item.description && (
+                          <div className="font-mono text-[10px] text-[#6fa876] line-clamp-2 mb-2">{item.description}</div>
+                        )}
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className="font-mono text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded"
+                            style={{ color: src.color, background: src.bg }}
+                          >
+                            {src.label}
+                          </span>
+                          <span className="font-mono text-[10px]" style={{ color: '#f59e0b' }}>
+                            {'★'.repeat(item.priorite)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {colItems.length === 0 && (
+                    <div className="font-mono text-[10px] text-[#384e3c] text-center py-4">—</div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────
+// Onglet Réglages (avec upload logo)
 // ─────────────────────────────────────────────────────
 function SettingsTab({ app, onUpdate }: { app: App; onUpdate: (a: App) => void }) {
   const router = useRouter()
@@ -397,6 +718,8 @@ function SettingsTab({ app, onUpdate }: { app: App; onUpdate: (a: App) => void }
   const [saving, setSaving] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
   const [showIngest, setShowIngest] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function save() {
     setSaving(true)
@@ -408,7 +731,7 @@ function SettingsTab({ app, onUpdate }: { app: App; onUpdate: (a: App) => void }
         name,
         url,
         webhook_url: webhookUrl || null,
-        webhook_secret: webhookSecret || undefined, // ne pas écraser si vide
+        webhook_secret: webhookSecret || undefined,
         control_note: description,
       }),
     })
@@ -453,11 +776,88 @@ function SettingsTab({ app, onUpdate }: { app: App; onUpdate: (a: App) => void }
     }
   }
 
+  async function uploadLogo(file: File) {
+    if (!file.type.startsWith('image/')) { showToast('Image requise', 'er'); return }
+    if (file.size > 2 * 1024 * 1024) { showToast('Fichier trop volumineux (max 2 Mo)', 'er'); return }
+
+    setUploadingLogo(true)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('app_key', app.app_key || '')
+
+    try {
+      const res = await fetch('/api/apps/logo', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (res.ok) {
+        onUpdate({ ...app, logo_url: json.logo_url })
+        showToast('Logo mis à jour', 'ok')
+      } else {
+        showToast(json.error || 'Erreur upload', 'er')
+      }
+    } catch {
+      showToast('Erreur réseau', 'er')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) uploadLogo(file)
+  }
+
+  function onLogoDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) uploadLogo(file)
+  }
+
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:border-[#4ade80]/50 focus:outline-none transition-colors'
 
   return (
     <div className="space-y-4 animate-slideUp">
-      {/* Edition générale */}
+      {/* Logo upload */}
+      <div className="glass p-5 md:p-6 space-y-3">
+        <div className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">// Logo</div>
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={onLogoDrop}
+          className="border-2 border-dashed border-white/10 rounded-xl p-5 flex items-center gap-4 cursor-pointer hover:border-[#4ade80]/40 hover:bg-white/5 transition-colors"
+        >
+          {app.logo_url ? (
+            <Image
+              src={app.logo_url}
+              alt="Logo actuel"
+              width={64}
+              height={64}
+              className="rounded-xl flex-shrink-0 border border-white/10 object-cover"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl font-display font-bold text-[#4ade80]"
+                 style={{ background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.25)' }}>
+              ⬡
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-white font-semibold mb-0.5">
+              {uploadingLogo ? 'Upload en cours…' : 'Cliquer ou déposer un logo'}
+            </div>
+            <div className="font-mono text-[10px] text-[#6fa876]">
+              512×512px recommandé · PNG, JPG ou WebP · max 2 Mo
+            </div>
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={onLogoChange}
+          className="hidden"
+        />
+      </div>
+
+      {/* General */}
       <div className="glass p-5 md:p-6 space-y-4">
         <div className="font-mono text-[10px] text-[#4ade80] tracking-[0.2em] uppercase">// Général</div>
         <div>

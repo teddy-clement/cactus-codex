@@ -41,3 +41,35 @@ export const SignalIngestSchema = z.object({
 })
 
 export type SignalIngestInput = z.infer<typeof SignalIngestSchema>
+
+// ── Improvement (roadmap kanban par app) ──
+export const ImprovementCreateSchema = z.object({
+  app_key: z.string().min(1, 'app_key requis'),
+  titre: z.string().min(1, 'Titre requis').max(120, 'Titre trop long'),
+  description: z.string().max(2000).nullable().optional(),
+  source: z.enum(['manual', 'terrain', 'cactus-os']).optional().default('manual'),
+  statut: z.enum(['idee', 'planifie', 'en_cours', 'livre']).optional().default('idee'),
+  priorite: z.number().int().min(1).max(5).optional().default(3),
+})
+
+export const ImprovementPatchSchema = z.object({
+  id: z.string().min(1),
+  titre: z.string().min(1).max(120).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  statut: z.enum(['idee', 'planifie', 'en_cours', 'livre']).optional(),
+  priorite: z.number().int().min(1).max(5).optional(),
+})
+
+export type ImprovementCreateInput = z.infer<typeof ImprovementCreateSchema>
+export type ImprovementPatchInput = z.infer<typeof ImprovementPatchSchema>
+
+// ── CactusOS chat ──
+export const CactusOSMessageSchema = z.object({
+  message: z.string().min(1, 'Message vide').max(2000, 'Message trop long'),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).optional().default([]),
+})
+
+export type CactusOSMessageInput = z.infer<typeof CactusOSMessageSchema>

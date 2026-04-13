@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import type { App } from '@/types'
 
@@ -58,7 +59,21 @@ export default function AppCard({ app, signals24h, feedbacksUnread, lastHeartbea
     >
       {/* ── En-tête ── */}
       <div className="p-5 pb-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-4">
+          {app.logo_url ? (
+            <Image
+              src={app.logo_url}
+              alt={app.name}
+              width={40}
+              height={40}
+              className="rounded-lg flex-shrink-0 border border-white/10 object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-base font-display font-bold text-[#4ade80]"
+                 style={{ background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.25)' }}>
+              ⬡
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="font-display text-xl font-bold text-white tracking-wide truncate">
               {app.name}

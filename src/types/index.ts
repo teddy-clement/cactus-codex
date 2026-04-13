@@ -30,6 +30,7 @@ export interface App {
   webhook_url?: string | null
   webhook_secret?: string | null
   ingest_key?: string | null
+  logo_url?: string | null
   created_at: string
 }
 
@@ -111,6 +112,31 @@ export interface Chantier {
   priority: 'high' | 'medium' | 'low'
   date_debut: string | null
   date_fin_prevue: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AppDeployment {
+  id: string
+  app_key: string
+  deployment_id: string
+  version: string | null
+  message: string | null
+  status: string
+  deployed_at: string
+  url: string | null
+  created_at: string
+}
+
+export interface AppImprovement {
+  id: string
+  app_key: string
+  titre: string
+  description: string | null
+  source: 'manual' | 'terrain' | 'cactus-os'
+  statut: 'idee' | 'planifie' | 'en_cours' | 'livre'
+  priorite: number
+  created_by: string | null
   created_at: string
   updated_at: string
 }

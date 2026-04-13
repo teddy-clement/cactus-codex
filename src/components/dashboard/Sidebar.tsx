@@ -9,6 +9,7 @@ type NavItem = { label: string; icon: string; href: string }
 const NAV: NavItem[] = [
   { label: 'Accueil',    icon: '◈', href: '/dashboard' },
   { label: 'Apps',       icon: '⬡', href: '/dashboard/apps' },
+  { label: 'CactusOS',   icon: '✦', href: '/dashboard/cactus-os' },
   { label: 'Broadcasts', icon: '📢', href: '/dashboard/broadcasts' },
   { label: 'Signaux',    icon: '◉', href: '/dashboard/analytics' },
   { label: 'Logs',       icon: '≡', href: '/dashboard/logs' },

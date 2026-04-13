@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { ToastProvider } from '@/components/ui/Toast'
 import { AppProvider } from '@/components/dashboard/AppContext'
 import { createClient } from '@/lib/supabase/client'
+import CactusOSFloating from '@/components/cactus-os/FloatingButton'
 
 // ── Mobile nav ───────────────────────────────────────────────────
 interface MobileNavContextType {
@@ -74,7 +75,10 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
     <MobileNavCtx.Provider value={{ open, setOpen, toggle }}>
       <AppProvider>
         <ToastProvider>
-          <NotificationsProvider>{children}</NotificationsProvider>
+          <NotificationsProvider>
+            {children}
+            <CactusOSFloating />
+          </NotificationsProvider>
         </ToastProvider>
       </AppProvider>
     </MobileNavCtx.Provider>
