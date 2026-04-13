@@ -1,5 +1,7 @@
 'use client'
 import React from 'react'
+import ReactMarkdown from 'react-markdown'
+import type { Components } from 'react-markdown'
 import { useToast } from '@/components/ui/Toast'
 
 // Marqueurs supportes :
@@ -106,13 +108,57 @@ function ActionButton({ action }: { action: ActionMatch }) {
   )
 }
 
+// Composants markdown personnalises :
+// - **gras** → font-semibold text-white
+// - listes → list-disc pl-4, puces propres
+// - liens → vert Codex
+// - code → monospace sur fond sombre
+const MD_COMPONENTS: Components = {
+  p: ({ children }) => <p className="my-1 leading-relaxed">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+  em: ({ children }) => <em className="italic text-white/90">{children}</em>,
+  ul: ({ children }) => <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li className="marker:text-[#4ade80]/60">{children}</li>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#4ade80] underline underline-offset-2 hover:text-[#4ade80]/80">
+      {children}
+    </a>
+  ),
+  code: ({ children }) => (
+    <code className="px-1.5 py-0.5 rounded bg-white/10 text-[#4ade80] font-mono text-[11px]">
+      {children}
+    </code>
+  ),
+  pre: ({ children }) => (
+    <pre className="my-2 p-3 rounded-lg bg-black/40 border border-white/10 font-mono text-[11px] text-[#d8eedd] overflow-x-auto">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-[#4ade80]/40 pl-3 my-2 text-white/80 italic">
+      {children}
+    </blockquote>
+  ),
+  h1: ({ children }) => <h1 className="font-display text-base font-bold text-white my-2">{children}</h1>,
+  h2: ({ children }) => <h2 className="font-display text-sm font-bold text-white my-2">{children}</h2>,
+  h3: ({ children }) => <h3 className="font-display text-sm font-semibold text-white my-1.5">{children}</h3>,
+  hr: () => <hr className="my-2 border-white/10" />,
+}
+
 export function MessageContent({ text }: { text: string }) {
   const { segments } = parseActions(text)
 
   return (
-    <div className="whitespace-pre-wrap break-words">
+    <div className="break-words">
       {segments.map((seg, i) => {
-        if (typeof seg === 'string') return <React.Fragment key={i}>{seg}</React.Fragment>
+        if (typeof seg === 'string') {
+          return (
+            <ReactMarkdown key={i} components={MD_COMPONENTS}>
+              {seg}
+            </ReactMarkdown>
+          )
+        }
         return <ActionButton key={i} action={seg} />
       })}
     </div>

@@ -111,6 +111,23 @@ export async function POST(req: NextRequest) {
   const { message, history } = parsed.data
   const supabase = createServiceClient()
 
+  // ── Horodatage de Cactus Codex (Europe/Paris) ──
+  // CactusOS doit toujours savoir quel jour on est et quelle heure il est.
+  const now = new Date()
+  const dateParis = now.toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const heureParis = now.toLocaleTimeString('fr-FR', {
+    timeZone: 'Europe/Paris',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const timeBlock = `\n## Horodatage actuel (référence Cactus Codex)\nNous sommes le ${dateParis}, il est ${heureParis} heure de Paris.\nUtilise cette date/heure quand c'est pertinent (ex: bonjour/bonsoir, "aujourd'hui", "cette semaine").\n`
+
   // ── Charger la mémoire persistante ──
   const [{ data: lastSummary }, { data: recentMessages }] = await Promise.all([
     supabase.from('cactus_os_memory').select('summary').order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -125,8 +142,8 @@ export async function POST(req: NextRequest) {
   const context = await buildContext()
   const contextBlock = `\n[CONTEXTE TEMPS RÉEL — JSON]\n${JSON.stringify(context, null, 2)}\n[FIN CONTEXTE]\n`
 
-  // System prompt complet : identite + memoire + contexte temps reel
-  const fullSystemPrompt = SYSTEM_PROMPT + memoryBlock + contextBlock
+  // System prompt complet : identite + horodatage + memoire + contexte temps reel
+  const fullSystemPrompt = SYSTEM_PROMPT + timeBlock + memoryBlock + contextBlock
 
   // Format OpenAI-compatible : system + history (session courante) + dernier user
   const messages: MistralMessage[] = [
