@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -27,6 +28,10 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Force la lecture du header x-nonce pour que Next.js applique automatiquement
+  // le nonce a ses propres inline scripts/styles (runtime bootstrap, hydration).
+  headers().get('x-nonce')
+
   return (
     <html lang="fr">
       <body>{children}</body>

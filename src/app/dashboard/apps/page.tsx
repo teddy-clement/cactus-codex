@@ -24,12 +24,15 @@ export default function AppsPage() {
 
   useEffect(() => {
     Promise.all([fetch('/api/apps').then(r => r.json()), fetch('/api/modules').then(r => r.json()), fetch('/api/signals').then(r => r.json())])
-      .then(([apps, mods, sigs]) => {
-        const appsList = apps as App[]
+      .then(([appsPayload, modsPayload, sigsPayload]) => {
+        // Supporte le format standardise {data, total} ET l'ancien format array
+        const appsList = (Array.isArray(appsPayload) ? appsPayload : appsPayload.data || []) as App[]
+        const mods = (Array.isArray(modsPayload) ? modsPayload : modsPayload.data || []) as AppModule[]
+        const sigs = (Array.isArray(sigsPayload) ? sigsPayload : sigsPayload.data || []) as AppSignal[]
         const current = (ctxApp && appsList.find(a => a.id === ctxApp.id)) || appsList[0]
         setApp(current || null)
-        setModules((mods as AppModule[]).filter((m) => m.app_id === current?.id))
-        setSignals((sigs as AppSignal[]).slice(0, 20))
+        setModules(mods.filter((m) => m.app_id === current?.id))
+        setSignals(sigs.slice(0, 20))
         if (current) setDraft({
           maintenance_message: current.maintenance_message || '',
           public_login_message: current.public_login_message || '',

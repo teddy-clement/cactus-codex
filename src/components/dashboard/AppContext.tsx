@@ -21,8 +21,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetch('/api/apps')
       .then(r => r.json())
-      .then((data: App[]) => {
-        const list = Array.isArray(data) ? data : []
+      .then((payload: { data?: App[] } | App[]) => {
+        // Supporte le format standardise {data, total} ET l'ancien format array
+        const list = Array.isArray(payload) ? payload : (payload.data || [])
         setApps(list)
         const savedKey = localStorage.getItem(STORAGE_KEY)
         const saved = savedKey ? list.find(a => a.app_key === savedKey) : null

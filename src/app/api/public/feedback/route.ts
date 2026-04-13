@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { verifyIngest } from '@/lib/ingest'
 
 function corsOrigin() {
   return process.env.ALLOWED_ORIGINS || ''
@@ -17,13 +18,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const ingestKey = process.env.CACTUS_CODEX_INGEST_KEY
-  const header = req.headers.get('x-codex-ingest-key') || ''
-  if (!ingestKey || header !== ingestKey) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  let body: Record<string, unknown>
+  try { body = await req.json() }
+  catch { return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 }) }
 
-  const body = await req.json()
   if (typeof body.app_key !== 'string' || !body.app_key.trim()) {
     return NextResponse.json({ error: 'app_key requis.' }, { status: 400 })
   }
@@ -31,11 +29,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'message requis.' }, { status: 400 })
   }
 
-  const severity = ['info', 'warn', 'critical'].includes(body.severity) ? body.severity : 'info'
+  const appKey = body.app_key.trim()
+
+  // Vérification ingest_key per-app (avec fallback CoTrain pré-migration)
+  const header = req.headers.get('x-codex-ingest-key') || ''
+  const auth = await verifyIngest(header, appKey)
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  const severity = typeof body.severity === 'string' && ['info', 'warn', 'critical'].includes(body.severity)
+    ? body.severity
+    : 'info'
 
   const supabase = createServiceClient()
   const { error } = await supabase.from('user_feedbacks').insert({
-    app_key: body.app_key.trim(),
+    app_key: appKey,
     user_email: typeof body.user_email === 'string' ? body.user_email : null,
     user_role: typeof body.user_role === 'string' ? body.user_role : null,
     message: body.message.trim(),

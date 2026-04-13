@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
-import bcrypt from 'bcryptjs'
+import { hash } from '@node-rs/bcrypt'
 
 export async function GET() {
   const session = await getSession()
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Champs manquants.' }, { status: 400 })
   }
 
-  const password_hash = await bcrypt.hash(password, 12)
+  const password_hash = await hash(password, 12)
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
   if (name) updates.name = name
   if (role && ['SUPERADMIN', 'ADMIN', 'VIEWER'].includes(role)) updates.role = role
   if (organisation !== undefined) updates.organisation = organisation || null
-  if (new_password) updates.password_hash = await bcrypt.hash(new_password, 12)
+  if (new_password) updates.password_hash = await hash(new_password, 12)
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Aucune modification.' }, { status: 400 })

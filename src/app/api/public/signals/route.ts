@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { SignalIngestSchema } from '@/lib/schemas'
+import { verifyIngest } from '@/lib/ingest'
 
 // ── CORS : origines autorisées uniquement ──
 function corsOrigin() {
@@ -23,42 +25,35 @@ export async function OPTIONS() {
   })
 }
 
-function ingestKey() {
-  // Utilise CACTUS_CODEX_INGEST_KEY en priorité.
-  // NE PAS utiliser AUTH_SECRET comme fallback — ce sont deux secrets distincts.
-  const key = process.env.CACTUS_CODEX_INGEST_KEY
-  if (!key) {
-    console.warn('[Codex] CACTUS_CODEX_INGEST_KEY non définie — endpoint /api/public/signals désactivé')
-  }
-  return key || ''
-}
-
 export async function POST(req: NextRequest) {
+  let raw: unknown
+  try { raw = await req.json() }
+  catch { return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 }) }
+
+  const parsed = SignalIngestSchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+  const { app_key: appKey, source, signal_type, severity, title, body, metadata } = parsed.data
+
+  // Vérification ingest_key per-app (avec fallback CoTrain pré-migration)
   const header = req.headers.get('x-codex-ingest-key') || ''
-  if (!ingestKey() || header !== ingestKey()) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const auth = await verifyIngest(header, appKey)
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
-
-  const body = await req.json()
-  if (typeof body.app_key !== 'string' || !body.app_key.trim()) {
-    return NextResponse.json({ error: 'app_key requis.' }, { status: 400 })
-  }
-  const appKey = body.app_key.trim()
-  const supabase = createServiceClient()
-
-  const { data: app } = await supabase.from('apps').select('id').eq('app_key', appKey).single()
-  if (!app) return NextResponse.json({ error: 'Application introuvable.' }, { status: 404 })
 
   const payload = {
-    app_id: app.id,
-    source: typeof body.source === 'string' ? body.source : appKey,
-    signal_type: typeof body.signal_type === 'string' ? body.signal_type : 'event',
-    severity: body.severity === 'warn' || body.severity === 'error' ? body.severity : 'info',
-    title: typeof body.title === 'string' ? body.title : 'Signal',
-    body: typeof body.body === 'string' && body.body.trim() ? body.body.trim() : null,
-    metadata: typeof body.metadata === 'object' && body.metadata ? body.metadata : {},
+    app_id: auth.app.id,
+    source: source ?? appKey,
+    signal_type,
+    severity,
+    title,
+    body: body ? body.trim() || null : null,
+    metadata,
   }
 
+  const supabase = createServiceClient()
   const { error } = await supabase.from('app_signals').insert(payload)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -20,11 +20,15 @@ CREATE TABLE IF NOT EXISTS user_feedbacks (
 ALTER TABLE user_feedbacks ENABLE ROW LEVEL SECURITY;
 
 -- Insertion publique (apps clientes via ingest key)
+-- Note : PostgreSQL ne supporte pas CREATE POLICY IF NOT EXISTS.
+-- Pattern idempotent : DROP IF EXISTS puis CREATE.
+DROP POLICY IF EXISTS "public insert user_feedbacks" ON user_feedbacks;
 CREATE POLICY "public insert user_feedbacks"
   ON user_feedbacks FOR INSERT
   TO anon, authenticated WITH CHECK (true);
 
 -- Lecture + écriture complète via service_role
+DROP POLICY IF EXISTS "service_role full access on user_feedbacks" ON user_feedbacks;
 CREATE POLICY "service_role full access on user_feedbacks"
   ON user_feedbacks FOR ALL
   TO service_role USING (true) WITH CHECK (true);
@@ -48,6 +52,7 @@ CREATE TABLE IF NOT EXISTS chantiers (
 
 ALTER TABLE chantiers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role full access on chantiers" ON chantiers;
 CREATE POLICY "service_role full access on chantiers"
   ON chantiers FOR ALL
   TO service_role USING (true) WITH CHECK (true);

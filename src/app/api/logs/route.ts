@@ -9,12 +9,20 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1)
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50))
+  const appFilter = url.searchParams.get('app')
   const offset = (page - 1) * limit
 
   const supabase = createServiceClient()
-  const { data, error, count } = await supabase
+  let query = supabase
     .from('activity_logs')
     .select('*', { count: 'exact' })
+
+  if (appFilter) {
+    // activity_logs n'a pas de colonne app_key — match dans le message
+    query = query.ilike('message', `%${appFilter}%`)
+  }
+
+  const { data, error, count } = await query
     .order('timestamp', { ascending: false })
     .range(offset, offset + limit - 1)
 

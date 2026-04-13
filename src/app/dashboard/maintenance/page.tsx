@@ -20,10 +20,13 @@ export default function MaintenancePage() {
     Promise.all([
       fetch('/api/apps').then(r => r.json()),
       fetch('/api/maintenance').then(r => r.json()),
-    ]).then(([appsData, schedulesData]: [App[], MaintenanceSchedule[]]) => {
+    ]).then(([appsPayload, schedulesPayload]) => {
+      // Supporte {data, total} et array direct
+      const appsData = (Array.isArray(appsPayload) ? appsPayload : appsPayload.data || []) as App[]
+      const schedulesData = (Array.isArray(schedulesPayload) ? schedulesPayload : schedulesPayload.data || []) as MaintenanceSchedule[]
       setApps(appsData)
       if (appsData.length) setSelectedApp(appsData[0].id)
-      setSchedules(schedulesData || [])
+      setSchedules(schedulesData)
     }).catch(() => showToast('Erreur de chargement', 'er'))
   }, [showToast])
 

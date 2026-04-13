@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateOTP, storeOTP, getUserByEmail } from '@/lib/auth'
 import { sendOTPEmail } from '@/lib/email'
-
-// ── Rate limiting : 3 renvois OTP / IP / 15 min ──
-const resendAttempts = new Map<string, { count: number; resetAt: number }>()
-
-function checkResendRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = resendAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    resendAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 })
-    return true
-  }
-  if (entry.count >= 3) return false
-  entry.count++
-  return true
-}
+import { checkRateLimit } from '@/lib/rateLimiter'
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown'
 
-  if (!checkResendRateLimit(ip)) {
+  const allowed = await checkRateLimit(`resend-otp:${ip}`, 3, 15 * 60 * 1000)
+  if (!allowed) {
     return NextResponse.json(
       { error: 'Trop de renvois. Réessayez dans 15 minutes.' },
       { status: 429 }

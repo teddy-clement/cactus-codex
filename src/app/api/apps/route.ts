@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { log } from '@/lib/logger'
+import { AppCreateSchema } from '@/lib/schemas'
 
 const allowedStatuses = new Set(['online', 'maintenance', 'offline'])
 
@@ -60,11 +62,72 @@ export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
 
+  // Exclure les secrets (webhook_secret, ingest_key) de la reponse
   const supabase = createServiceClient()
-  const { data, error } = await supabase.from('apps').select('*').order('name')
+  const { data, error, count } = await supabase
+    .from('apps')
+    .select('id, name, url, env, status, uptime, maintenance_since, maintenance_message, maintenance_by, app_key, control_note, public_login_message, public_home_message, login_notice_enabled, home_notice_enabled, reboot_required, last_restart_at, webhook_url, created_at', { count: 'exact' })
+    .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json({ data: data || [], total: count || 0 })
+}
+
+// ── POST : creer une nouvelle app ────────────────────────────────
+export async function POST(req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
+  if (session.user.role !== 'SUPERADMIN') {
+    return NextResponse.json({ error: 'Permissions insuffisantes.' }, { status: 403 })
+  }
+
+  let body: unknown
+  try { body = await req.json() }
+  catch { return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 }) }
+
+  const parsed = AppCreateSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+  const { name, app_key: appKey, url, env, webhook_url: webhookUrl, webhook_secret: webhookSecret, description } = parsed.data
+
+  const supabase = createServiceClient()
+
+  // Verifier unicite app_key
+  const { data: existing } = await supabase.from('apps').select('id').eq('app_key', appKey).maybeSingle()
+  if (existing) {
+    return NextResponse.json({ error: `L'app_key "${appKey}" est deja utilisee.` }, { status: 409 })
+  }
+
+  // Generer l'ingest_key UUID v4 (cote serveur uniquement)
+  const ingestKey = randomUUID()
+
+  const { data, error } = await supabase
+    .from('apps')
+    .insert({
+      name,
+      app_key: appKey,
+      url,
+      env,
+      status: 'online',
+      webhook_url: webhookUrl ?? null,
+      webhook_secret: webhookSecret ?? null,
+      ingest_key: ingestKey,
+      control_note: description ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await log('ok', `Nouvelle app enregistrée : "${name}" (${appKey})`, session.user.name)
+
+  // Retourner l'ingest_key une seule fois
+  return NextResponse.json({
+    ...data,
+    ingest_key: ingestKey,
+    _warning: 'Conservez cette ingest_key — elle ne sera plus affichée.',
+  }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {

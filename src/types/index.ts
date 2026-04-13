@@ -27,6 +27,9 @@ export interface App {
   home_notice_enabled?: boolean | null
   reboot_required?: boolean | null
   last_restart_at?: string | null
+  webhook_url?: string | null
+  webhook_secret?: string | null
+  ingest_key?: string | null
   created_at: string
 }
 

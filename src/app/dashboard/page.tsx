@@ -83,7 +83,7 @@ export default async function DashboardPage() {
           <div className="phg">// {modulesOnline}/{appModules.length} operationnels</div>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {appModules.map((module) => (
               <div
                 key={module.id}

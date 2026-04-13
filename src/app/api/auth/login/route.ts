@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
+import { compare } from '@node-rs/bcrypt'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateOTP, setSession, storeOTP } from '@/lib/auth'
 import { sendOTPEmail } from '@/lib/email'
 import { log } from '@/lib/logger'
+import { checkRateLimit } from '@/lib/rateLimiter'
 
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 const REQUIRE_OTP = process.env.AUTH_REQUIRE_OTP === 'true'
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = loginAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 })
-    return true
-  }
-  if (entry.count >= 5) return false
-  entry.count++
-  return true
-}
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown'
 
-  if (!checkRateLimit(ip)) {
+  const allowed = await checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+  if (!allowed) {
     return NextResponse.json(
       { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
       { status: 429 }
@@ -56,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Identifiants incorrects.' }, { status: 401 })
   }
 
-  const validPassword = await bcrypt.compare(password, user.password_hash)
+  const validPassword = await compare(password, user.password_hash)
   if (!validPassword) {
     await log('warn', `Tentative login échouée — ${normalizedEmail}`, 'Inconnu')
     return NextResponse.json({ error: 'Identifiants incorrects.' }, { status: 401 })

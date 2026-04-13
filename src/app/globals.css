@@ -757,3 +757,123 @@ body::after {
 .module-name{font-weight:800;color:#fff;font-size:15px}.module-path{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
 .module-actions{display:flex;gap:10px;flex-wrap:wrap}.module-card textarea{width:100%;border-radius:10px;border:1px solid var(--border2);background:#0f1713;color:#fff;padding:10px;font-size:13px;resize:vertical}
 .signal-table{display:flex;flex-direction:column;gap:10px}.signal-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)}.signal-row:last-child{border-bottom:none}.signal-row p{margin:4px 0 0;color:#9fb7a3;font-size:13px}.signal-row time{font-family:'DM Mono',monospace;font-size:10px;color:#6fa876}
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE — iPhone SE (375px) a iPhone 15 Pro Max (430px)
+   Breakpoint : Tailwind sm = 640px. Mobile = < 640px.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 639px) {
+  /* ── Topbar plus compact ── */
+  .topbar { padding: 12px 14px; gap: 10px; }
+  .tb-title { font-size: 17px; }
+  .tb-chip { padding: 5px 9px; font-size: 9px; letter-spacing: .08em; }
+
+  /* ── Grids : tout en colonne unique ── */
+  .g4, .g2, .g2-inner,
+  .hero-shell, .content-grid, .lower-grid,
+  .metrics-grid, .app-section-grid, .app-footer-row,
+  .apps-summary, .focus-strip,
+  .module-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Gap plus compact sur mobile */
+  .g4, .g2, .metrics-grid, .hero-shell, .content-grid, .lower-grid { gap: 12px; }
+
+  /* ── Hero ── */
+  .hero-card-main { padding: 20px; }
+  .hero-title { font-size: 28px; margin-top: 10px; }
+  .hero-copy { font-size: 14px; margin-top: 12px; }
+  .hero-actions { flex-direction: column; gap: 8px; }
+  .hero-btn { width: 100%; padding: 12px 14px; font-size: 14px; }
+  .hero-card-side { padding: 18px; gap: 14px; }
+  .mini-title { font-size: 24px; }
+  .focus-meta { padding: 14px; }
+  .focus-value { font-size: 26px; }
+
+  /* ── Panel ── */
+  .panel { border-radius: 8px; }
+  .ph { padding: 11px 14px; flex-wrap: wrap; gap: 6px; }
+  .pht { font-size: 13px; }
+  .panel-body { padding: 14px; }
+
+  /* ── Metric cards ── */
+  .metric-card { padding: 14px 16px; }
+  .metric-value { font-size: 26px; }
+  .stat { padding: 14px; }
+  .sv { font-size: 24px; }
+
+  /* ── Apps header ── */
+  .apps-header { padding: 18px; flex-direction: column; gap: 16px; }
+  .apps-title { font-size: 22px; }
+  .apps-summary { min-width: 0; width: 100%; }
+
+  /* ── Module cards ── */
+  .module-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .module-actions .control-btn { flex: 1; min-width: 0; font-size: 11px; padding: 9px 10px; }
+
+  /* ── Signal rows compactes ── */
+  .signal-row { padding: 11px 14px; gap: 10px; flex-wrap: wrap; }
+  .signal-left { width: auto; flex-direction: row; gap: 8px; }
+  .signal-right { text-align: left; width: 100%; margin-top: 4px; display: flex; justify-content: space-between; }
+  .signal-right .sig-source, .signal-right .sig-time { display: inline; margin-top: 0; }
+
+  /* ── Broadcasts active rows ── */
+  .active-row { flex-direction: column; align-items: stretch; padding: 12px 14px; gap: 10px; }
+  .active-badge { width: auto; }
+  .stop-btn { width: 100%; }
+
+  /* ── Bc rows compactes ── */
+  .bc-row { flex-wrap: wrap; padding: 11px 14px; }
+  .bc-left { width: auto; flex-direction: row; gap: 8px; }
+  .bc-right { text-align: left; width: 100%; display: flex; justify-content: space-between; margin-top: 4px; }
+  .bc-time, .bc-exp { display: inline; }
+
+  /* ── Schedule rows ── */
+  .schedule-row { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+  .schedule-row .ibtn-del { align-self: flex-end; }
+
+  /* ── Filter group wrap ── */
+  .filter-group { flex-wrap: wrap; }
+  .signals-top { flex-direction: column; align-items: stretch; gap: 8px; }
+  .signals-top .refresh-btn { width: 100%; }
+
+  /* ── Maintenance banner ── */
+  .maint-banner { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
+  .btn-online { width: 100%; }
+
+  /* ── Info grid ── */
+  .info-grid { grid-template-columns: 1fr; gap: 2px 0; line-height: 1.6; }
+  .info-grid > :nth-child(odd) { margin-top: 8px; }
+
+  /* ── Tables (users, logs) : afficher en cards empilees ── */
+  .trow {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .trow.thead { display: none; } /* Masquer le header table sur mobile */
+  .trow .mav { position: absolute; top: 14px; right: 14px; }
+
+  /* ── Log rows compactes ── */
+  .lr {
+    grid-template-columns: 1fr !important;
+    gap: 4px;
+    padding: 12px 14px;
+    font-size: 11px;
+  }
+  .lr-head { display: none; }
+  .lr .ts { font-size: 10px; color: #6fa876; }
+  .lr .lu { text-align: left; font-size: 10px; }
+
+  /* ── Backlog row ── */
+  .backlog-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 0; }
+
+  /* ── Form field : padding reduit ── */
+  .field input, .field select, .field textarea { padding: 10px 12px; font-size: 14px; }
+
+  /* ── Boutons action pleine largeur ── */
+  .btn-action { padding: 12px; font-size: 14px; letter-spacing: .1em; }
+}
+

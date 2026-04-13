@@ -98,8 +98,8 @@ export default function UsersPage() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={() => setEditing(null)}>
-          <div className="w-[420px] bg-surface-2 border border-border-2 rounded-xl p-6 shadow-[0_24px_64px_rgba(0,0,0,.65)] animate-rise" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" onClick={() => setEditing(null)}>
+          <div className="w-full max-w-md bg-surface-2 border border-border-2 rounded-xl p-5 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,.65)] animate-rise max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <div className="font-display text-lg font-extrabold text-white mb-4">Modifier l'utilisateur</div>
             <form onSubmit={saveEdit}>
               <div className="field">

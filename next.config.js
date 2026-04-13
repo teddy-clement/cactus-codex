@@ -4,7 +4,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://cotrain-vbeta.v
 
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['bcryptjs'],
+    serverComponentsExternalPackages: ['@node-rs/bcrypt'],
   },
 
   images: {
@@ -13,7 +13,7 @@ const nextConfig = {
 
   async headers() {
     return [
-      // ── Routes publiques consommées par CoTrain (CORS) ──────────────
+      // ── Routes publiques consommées par les apps clientes (CORS) ──
       {
         source: '/api/public/:path*',
         headers: [
@@ -23,7 +23,7 @@ const nextConfig = {
           { key: 'Access-Control-Max-Age',       value: '86400' },
         ],
       },
-      // ── Sécurité globale ────────────────────────────────────────────
+      // ── Sécurité globale (hors CSP, désormais gérée dynamiquement dans le middleware) ──
       {
         source: '/(.*)',
         headers: [
@@ -34,18 +34,6 @@ const nextConfig = {
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
-          },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob:",
-              "connect-src 'self' https://ijoyjcajzbmsexpyjctb.supabase.co",
-              "frame-ancestors 'none'",
-            ].join('; '),
           },
         ],
       },

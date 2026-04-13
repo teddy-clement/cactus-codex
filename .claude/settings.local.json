@@ -5,7 +5,10 @@
       "Bash(npx next:*)",
       "Bash(mkdir -p src/app/api/app-broadcasts)",
       "Bash(cp src/app/api/cotrain-broadcasts/route.ts src/app/api/app-broadcasts/route.ts)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(grep -E \"POST|PATCH|DELETE\" c:/Users/ted74/Cactus-Codex/cactus-codex.com/src/app/api/*/route.ts)",
+      "Bash(npm run:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

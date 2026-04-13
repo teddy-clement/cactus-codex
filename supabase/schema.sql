@@ -98,35 +98,9 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   "user" TEXT NOT NULL DEFAULT 'Système'
 );
 
-INSERT INTO apps (name, url, env, status, uptime, app_key, control_note)
-VALUES ('CoTrain', 'https://cotrain-vbeta.vercel.app', 'production', 'online', 99.8, 'cotrain', 'Pilotage centralisé depuis Cactus Codex')
-ON CONFLICT (app_key) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url, control_note = EXCLUDED.control_note;
-
-WITH app AS (SELECT id FROM apps WHERE app_key = 'cotrain')
-INSERT INTO app_modules (app_id, module_key, name, path_prefix, status)
-SELECT app.id, x.module_key, x.name, x.path_prefix, 'online'
-FROM app CROSS JOIN (
-  VALUES
-    ('login', 'Connexion', '/login'),
-    ('home', 'Accueil', '/home'),
-    ('geops', 'GEOPS', '/geops'),
-    ('cosite', 'COSITE', '/cosite'),
-    ('coman', 'COMAN', '/coman'),
-    ('encadrant', 'Encadrant', '/encadrant'),
-    ('copt', 'COPT', '/copt'),
-    ('messagerie', 'Messagerie', '/messagerie'),
-    ('affichage', 'Affichage', '/affichage'),
-    ('admin', 'Administration', '/admin'),
-    ('superadmin', 'Superadmin', '/superadmin')
-) AS x(module_key, name, path_prefix)
-ON CONFLICT (app_id, module_key) DO NOTHING;
-
-INSERT INTO roadmap_items (title, description, status, progress, tag, version, priority) VALUES
-('Codex ↔ CoTrain — maintenance globale', 'Basculer toute l’application depuis Codex', 'done', 100, 'infra', 'v4', 'high'),
-('Codex ↔ CoTrain — maintenance par module', 'GEOPS, COSITE, COMAN, messagerie, affichage', 'active', 75, 'infra', 'v4', 'high'),
-('Signals structurels', 'Connexions, alertes, erreurs UI, heartbeat', 'active', 65, 'infra', 'v4', 'high'),
-('Messages publics login / home', 'Annonces MAJ, coupure, reprise', 'done', 100, 'ux', 'v4', 'high')
-ON CONFLICT DO NOTHING;
+-- NOTE : les donnees metier (app CoTrain, modules, roadmap) sont extraites
+-- dans supabase/seeds/cotrain.sql pour garder le schema pur structure.
+-- Ce fichier ne doit contenir que de la definition de structure.
 
 ALTER TABLE cc_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE otp_codes ENABLE ROW LEVEL SECURITY;

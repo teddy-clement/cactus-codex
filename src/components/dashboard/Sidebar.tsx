@@ -1,6 +1,8 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
+import { useMobileNav, useNotifications } from '@/components/dashboard/DashboardShell'
+import AppSelector from '@/components/dashboard/AppSelector'
 import type { CCUser } from '@/types'
 
 type NavItem = {
@@ -48,6 +50,8 @@ const NAV: { group: string; items: NavItem[] }[] = [
 export default function Sidebar({ user }: { user: CCUser }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { open, setOpen } = useMobileNav()
+  const { newFeedbacks } = useNotifications()
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -56,8 +60,8 @@ export default function Sidebar({ user }: { user: CCUser }) {
 
   const initials = user.name.split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2)
 
-  return (
-    <aside className="sidebar">
+  const content = (
+    <>
       <div className="sidebar-brand-panel">
         <div className="sidebar-brand-mark">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -69,17 +73,27 @@ export default function Sidebar({ user }: { user: CCUser }) {
         </div>
       </div>
 
+      {/* Selecteur d'app : visible uniquement sur mobile (desktop → Topbar) */}
+      <div className="sm:hidden px-4 py-3 border-b border-[rgba(38,60,43,.9)]">
+        <AppSelector className="w-full" />
+      </div>
+
       <nav className="sidebar-nav">
         {NAV.map((group) => (
           <div key={group.group} className="nav-group">
             <div className="nav-group-label">{group.group}</div>
             {group.items.map((item) => {
               const active = item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href)
+              const showFeedbackBadge = item.href === '/dashboard/feedbacks' && newFeedbacks > 0
               return (
                 <button key={item.href} type="button" className={`nav-item ${active ? 'active' : ''}`} onClick={() => router.push(item.href)}>
                   <span className="nav-icon">{item.icon}</span>
                   <span>{item.label}</span>
-                  {item.badge && <span className={`nav-badge ${item.badgeColor || 'green'}`}>{item.badge}</span>}
+                  {showFeedbackBadge ? (
+                    <span className="nav-badge red">{newFeedbacks > 9 ? '9+' : newFeedbacks}</span>
+                  ) : item.badge ? (
+                    <span className={`nav-badge ${item.badgeColor || 'green'}`}>{item.badge}</span>
+                  ) : null}
                 </button>
               )
             })}
@@ -95,6 +109,26 @@ export default function Sidebar({ user }: { user: CCUser }) {
         </div>
         <button className="logout-btn" onClick={handleLogout} title="Déconnexion">⏻</button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* ── Desktop : sidebar fixe ≥ 640px ── */}
+      <aside className="sidebar hidden sm:flex">{content}</aside>
+
+      {/* ── Mobile : overlay + drawer < 640px ── */}
+      <div
+        className={`fixed inset-0 z-[90] bg-black/70 transition-opacity duration-200 sm:hidden ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+      <aside
+        className={`sidebar sm:hidden fixed top-0 left-0 bottom-0 w-[280px] z-[100] transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        aria-hidden={!open}
+      >
+        {content}
+      </aside>
+    </>
   )
 }

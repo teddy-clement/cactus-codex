@@ -9,7 +9,7 @@ import path from 'node:path'
 import { existsSync } from 'node:fs'
 import dotenv from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import { hash } from '@node-rs/bcrypt'
 
 const envCandidates = ['.env.local', '.env']
 for (const file of envCandidates) {
@@ -52,7 +52,7 @@ async function seedAdmin() {
   console.log('🌵 Création du SUPERADMIN Cactus Codex...')
   console.log(`🔗 Supabase : ${supabaseUrl}`)
 
-  const password_hash = await bcrypt.hash(password, 12)
+  const password_hash = await hash(password, 12)
 
   const { data, error } = await supabase
     .from('cc_users')

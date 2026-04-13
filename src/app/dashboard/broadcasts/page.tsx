@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useToast } from '@/components/ui/Toast'
+import { createClient } from '@/lib/supabase/client'
 
 type SentBroadcast = {
   id: string
@@ -46,9 +47,33 @@ export default function BroadcastsPage() {
   useEffect(() => {
     fetch('/api/broadcasts')
       .then(r => r.json())
-      .then((data: SentBroadcast[]) => setHistory(Array.isArray(data) ? data : []))
+      .then((payload: { data?: SentBroadcast[] } | SentBroadcast[]) => {
+        const list = Array.isArray(payload) ? payload : (payload.data || [])
+        setHistory(list)
+      })
       .catch(() => showToast('Erreur chargement historique broadcasts', 'er'))
   }, [showToast])
+
+  // ── Realtime : historique codex_broadcasts toujours frais ──
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('broadcasts-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'codex_broadcasts' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const b = payload.new as SentBroadcast
+          setHistory(prev => {
+            if (prev.some(x => x.id === b.id)) return prev
+            return [b, ...prev].slice(0, 50)
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          const b = payload.new as SentBroadcast
+          setHistory(prev => prev.map(x => x.id === b.id ? b : x))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const loadActive = useCallback(async () => {
     setLoadingActive(true)

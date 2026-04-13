@@ -7,8 +7,10 @@ if (!process.env.AUTH_SECRET) {
   throw new Error('[FATAL] AUTH_SECRET manquant — impossible de signer les sessions. Définir AUTH_SECRET dans .env')
 }
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET)
-const COOKIE_NAME = 'cc_session'
-const SESSION_DURATION = 60 * 60 * 8 // 8 heures
+export const COOKIE_NAME = 'cc_session'
+export const SESSION_DURATION = 60 * 60 * 8 // 8 heures (secondes)
+// Seuil de refresh : a mi-chemin de la fenetre (4h) on emet un nouveau token
+export const SESSION_REFRESH_THRESHOLD = 60 * 60 * 4
 
 // ── Créer un token JWT signé ──────────────────────────
 export async function createSessionToken(user: CCUser): Promise<string> {
@@ -24,6 +26,31 @@ export async function verifySessionToken(token: string): Promise<Session | null>
   try {
     const { payload } = await jwtVerify(token, SECRET)
     return payload as unknown as Session
+  } catch {
+    return null
+  }
+}
+
+// ── Refresh sliding : emet un nouveau token si l'actuel a plus de 4h ──
+// Retourne le nouveau token si refresh necessaire, null si le token existant
+// est encore suffisamment jeune (ou invalide).
+export async function refreshSession(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET)
+    const iat = typeof payload.iat === 'number' ? payload.iat : 0
+    const now = Math.floor(Date.now() / 1000)
+    const age = now - iat
+
+    if (age < SESSION_REFRESH_THRESHOLD) return null
+
+    const user = (payload as unknown as Session).user
+    if (!user) return null
+
+    return new SignJWT({ user })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(now + SESSION_DURATION)
+      .sign(SECRET)
   } catch {
     return null
   }
